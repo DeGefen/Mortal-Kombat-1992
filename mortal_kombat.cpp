@@ -5,7 +5,8 @@
 #include <box2d/box2d.h>
 using namespace std;
 
-namespace mortal_kombat {
+namespace mortal_kombat
+{
     Mortal_kombat::Mortal_kombat() {
         if (!SDL_Init(SDL_INIT_VIDEO)) {
             cout << SDL_GetError() << endl;
@@ -17,7 +18,7 @@ namespace mortal_kombat {
             cout << SDL_GetError() << endl;
             return;
         }
-        SDL_Surface *surf = IMG_Load("res/pong.png");
+        SDL_Surface *surf = IMG_Load("res/Scorpion.png");
         if (surf == nullptr) {
             cout << SDL_GetError() << endl;
             return;
