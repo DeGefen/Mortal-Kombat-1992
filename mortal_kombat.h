@@ -1,7 +1,11 @@
 #pragma once
+#include "SDL3/SDL.h"
+#include "box2d/box2d.h"
 #include "bagel.h"
-#include <SDL3/SDL.h>
-#include <box2d/box2d.h>
+#include "lib/box2d/src/body.h"
+#include <string>
+
+#include "SDL3_image/SDL_image.h"
 
 namespace mortal_kombat
 {
@@ -15,9 +19,7 @@ namespace mortal_kombat
 
     private:
         static constexpr int FPS = 60;
-        static constexpr int WINDOW_WIDTH = 800;
-        static constexpr int WINDOW_HEIGHT = 600;
-        static constexpr float BOX_SCALE = 10;
+        static constexpr float BOX_SCALE = 10.0f;
         static constexpr float TEX_SCALE = 0.5f;
         static constexpr SDL_FRect
         BALL_TEX = {404, 580, 76, 76};
@@ -35,49 +37,49 @@ namespace mortal_kombat
 
     /// @brief Position component holds the x and y coordinates of an object.
     struct Position {
-        float x, y;
+        float x = 0.0f, y = 0.0f;
     };
 
-    /// @brief Velocity component holds the x and y velocity of an object.
-    struct Velocity {
-        float vx = 0, vy = 0;
+    /// @brief Movement component holds the velocity of the entity.
+    struct Movement {
+        float vx = 0, vy = 0; // Velocity in x and y directions
     };
 
     /// @brief Texture component holds the SDL texture and its rectangle for rendering.
     struct Texture {
-        SDL_Texture *tex;
-        SDL_FRect rect;
+        SDL_Texture *tex = nullptr;
+        SDL_FRect rect = {0, 0, 0, 0}; // Source rectangle for texture
     };
 
     /// @brief Texture component holds the SDL texture and its rectangle for rendering.
     struct Sound {
-        SDL_AudioSpec spec;
-        SDL_AudioDeviceID dev;
-        Uint8 *buf;
-        Uint32 len;
+        SDL_AudioSpec spec = {};
+        SDL_AudioDeviceID dev = 0;
+        Uint8 *buf = nullptr;
+        Uint32 len = 0;
     };
 
-    /// @brief Hitbox component holds the body and fixture IDs for Hitbox detection.
-    struct Hitbox {
-        b2BodyId body;
-        b2FixtureId fixture;
+    /// @brief Collider component holds the physics body and shape.
+    struct Collider {
+        b2Body* body = nullptr; // Box2D body for collision
+        b2Shape* shape = nullptr; // Shape used for collision detection
+        bool isTrigger = false; // Whether the collider is a trigger
     };
 
     /// @brief Enum State holds the different states of the player.
-    enum class State
-    {
-            IDLE, WALK_LEFT, WALK_RIGHT, CROUCH, WALK, JUMP,
-            LOW_PUNCH, HIGH_PUNCH, LOW_KICK, HIGH_KICK,
-            LOW_JUMP_KICK, HIGH_JUMP_KICK, JUMP_PUNCH,
-            UPPERCUT, CROUCH_KICK, LOW_SWEEP_KICK,
-            HIGH_SWEEP_KICK BLOCK, SPECIAL_MOVE, CHEER, WON,
-            KNOCKED_BACK, KNOCKED_UP, HIT,
+    enum class State {
+        IDLE, WALK_LEFT, WALK_RIGHT, CROUCH, WALK, JUMP,
+        LOW_PUNCH, HIGH_PUNCH, LOW_KICK, HIGH_KICK,
+        LOW_JUMP_KICK, HIGH_JUMP_KICK, JUMP_PUNCH,
+        UPPERCUT, CROUCH_KICK, LOW_SWEEP_KICK,
+        HIGH_SWEEP_KICK, BLOCK, SPECIAL_MOVE, CHEER, WON,
+        KNOCKED_BACK, KNOCKED_UP, HIT
     };
 
     /// @brief Player_state component holds the state for the player.
-    struct Player_state {
-        State state;
-        int busy_frames;
+    struct PlayerState {
+        State state = State::IDLE;
+        int busy_frames = 0; // Number of frames the player is busy
     };
 
     /// @brief Input component holds the input state for the player.
@@ -87,50 +89,64 @@ namespace mortal_kombat
         LOW_PUNCH, HIGH_PUNCH, LOW_KICK, HIGH_KICK, BLOCK,
     };
 
-    /// @brief Input component holds the input, and input history for the player.
+    /// @brief Inputs component holds the input, and input history for the player.
     struct Inputs {
-        input[20] history = {0};
-        int[20] frame_number = {0};
+        Input history[20] = {};
+        int frame_number[20] = {};
         int index = 0;
+    };
+
+    enum class AttackType
+    {
+        LOW_PUNCH, HIGH_PUNCH, LOW_KICK, HIGH_KICK,
+        LOW_JUMP_KICK, HIGH_JUMP_KICK, JUMP_PUNCH,
+        UPPERCUT, CROUCH_KICK, LOW_SWEEP_KICK,
+        HIGH_SWEEP_KICK, BLOCK
+    };
+
+    enum class SpecialAttackType
+    {
+        FIREBALL, TELEPORT, FLYING_KICK,
+        SPINNING_BIRD_KICK, SCORPION_PUNCH,
+        SUBZERO_FREEZE, SCORPION_TELEPORT,
+        SUBZERO_SLIDE, SCORPION_CHAIN
     };
 
     /// @brief Attack component holds the attack type, damage, hitbox, and hitbox type.
     struct Attack {
-        int type;
-        int damage;
-        int hitbox;
-        int hitbox_type;
-        int hitbox_size;
-        int hitbox_duration;
+        AttackType type;
+        float damage = 0.0f;
+        float hitbox = 0.0f;
+        int hitbox_type = 0;
+        float hitbox_size = 0.0f;
+        float hitbox_duration = 0.0f;
     };
 
-    /// @brief Special_move component holds the special move type, damage, hitbox, and hitbox type.
-    struct Special_attack {
-        int type;
-        input[5] input;
-        int damage;
-        int hitbox;
-        int hitbox_type;
-        int hitbox_size;
-        int hitbox_duration;
-        bool bullet;
+    /// @brief SpecialAttack component holds the special move type and inputs for the attack.
+    struct SpecialAttack {
+        SpecialAttackType type;
+        float damage = 0.0f;
+        float hitbox = 0.0f;
+        int hitbox_type = 0;
+        float hitbox_size = 0.0f;
+        float hitbox_duration = 0.0f;
     };
 
     /// @brief Character component holds the character information of the player.
     struct Character {
-        char[10] name;
-        Special_move[3] special_moves;
+        char name[10] = {};
+        Input special_moves_input[3] = {};
     };
 
     /// @brief Health component holds the maximum and current health of the player.
     struct Health {
-        int max_health;
-        int current_health;
+        float max_health = 100.0f;
+        float current_health = 100.0f;
     };
 
     /// @brief Time component holds the time remaining in the match.
     struct Time {
-        int time;
+        float time = 0.0f;
     };
 
     /// @brief Score component holds the score of the player.
@@ -163,72 +179,100 @@ namespace mortal_kombat
     /* =============== entities =============== */
     /// @brief Entity is a unique identifier for each game object.
 
-    /// @brief Creates a player1's character (like Scorpion, Sub-Zero, etc.)
-    bagel::Entity createPlayer1(float x, float y, Character &character) {
+    static constexpr int WINDOW_WIDTH = 800;
+    static constexpr int WINDOW_HEIGHT = 600;
+
+    /// @brief Creates Mario entity.
+    /// @param x,y Position of the entity in the game world.
+    /// @param renderer SDL renderer used to create the texture.
+    /// @return A `bagel::ent_type` representing the Mario entity.
+    inline bagel::ent_type createMario(float x, float y, SDL_Renderer* renderer) {
         bagel::Entity entity = bagel::Entity::create();
 
+        entity.addAll(
+                    Position{x, y},
+                    MarioState{},
+                    Movement{},
+                    Physics{},
+                    Texture{},
+                    AnimatedImage{},
+                    Collider{},
+                    Input{},
+                    State{}
+                    );
+
+        return entity.entity();
+    }
+
+    /// @brief Creates a player's character (like Scorpion, Sub-Zero, etc.)
+    inline bagel::ent_type createPlayer(float x, float y, Character &character, SDL_Renderer* renderer) {
+        bagel::Entity entity = bagel::Entity::create();
+
+        // Construct the texture path
+        std::string texturePath = "res/" + std::string(character.name) + ".png";
+
+        // Load the image as a surface
+        SDL_Surface* surface = IMG_Load(texturePath.c_str());
+        if (!surface) {
+            SDL_Log("Failed to load image: %s, SDL_Error: %s", texturePath.c_str(), SDL_GetError());
+            return {};
+        }
+
+        // Create a texture from the surface
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+        SDL_DestroySurface(surface); // Free the surface after creating the texture
+        if (!texture) {
+            SDL_Log("Failed to create texture: %s, SDL_Error: %s", texturePath.c_str(), SDL_GetError());
+            return {};
+        }
+
+        // Add components to the entity
         entity.addAll(Position{x, y},
-                      Velocity{0, 0},
-                      Hitbox{nullptr, nullptr},
-                      Texture{"res/" + character.name + ".png", SDL_FRect{0, 0, 100, 100}},
-                      Player_state{0, 0},
+                      Movement{0, 0},
+                      Collider{nullptr, nullptr},
+                      Texture{texture, SDL_FRect{0, 0, 100, 100}},
+                      PlayerState{State::IDLE, 0},
                       Inputs{},
                       character,
                       Health{100, 100});
 
-        return entity;
+        return entity.entity();
     }
 
-    /// @brief Creates a player2's character (like Scorpion, Sub-Zero, etc.)
-    bagel::Entity createPlayer2(float x, float y, Character &character) {
+    /// @brief Creates an Attack entity (like a punch or kick)
+    inline bagel::ent_type createAttack(float x, float y, AttackType type) {
         bagel::Entity entity = bagel::Entity::create();
 
         entity.addAll(Position{x, y},
-                      Velocity{0, 0},
-                      Hitbox{nullptr, nullptr},
-                      Texture{"res/" + character.name + ".png", SDL_FRect{0, 0, 100, 100}},
-                      Player_state{0, 0},
-                      Inputs{},
-                      character,
-                      Health{100, 100});
+                      Collider{nullptr, nullptr},
+                      Attack{type, 0.0f, 0.0f, 0, 0.0f, 0.0f});
 
-        return entity;
+        return entity.entity();
     }
 
-    /// @brief Creates a Attack entity (like a punch or kick)
-    bagel::Entity createAttack(float x, float y, Attack attack) {
+    /// @brief Creates a special attack entity (like a punch or kick)
+    bagel::ent_type createSpecialAttack(float x, float y, SpecialAttackType type) {
         bagel::Entity entity = bagel::Entity::create();
 
         entity.addAll(Position{x, y},
-                      Hitbox{nullptr, nullptr},
-                      attack);
+                      Collider{nullptr, nullptr},
+                      SpecialAttack{type, 0.0f, 0.0f, 0, 0.0f, 0.0f});
 
-        return entity;
-    }
-
-    /// @brief Creates a Special Attack entity (like a punch or kick)
-    bagel::Entity createSpecialAttack(float x, float y, Special_attack special_attack) {
-        bagel::Entity entity = bagel::Entity::create();
-
-        entity.addAll(Position{x, y},
-                      Hitbox{nullptr, nullptr},
-                      special_attack);
-
-        return entity;
+        return entity.entity();
     }
 
     /// @brief Creates a static platform/boundary
-    bagel::Entity createBoundary(float x, float y, float width, float height) {
+    bagel::ent_type createBoundary(float x, float y, float width, float height) {
         bagel::Entity entity = bagel::Entity::create();
 
         entity.addAll(Position{x, y},
-                      Hitbox{nullptr, nullptr});
+                      Collider{nullptr, nullptr});
 
-        return entity;
+        return entity.entity();
     }
 
     /// @brief Creates a game info entity
-    bagel::Entity gameInfo(int initialTime) {
+    bagel::ent_type createGameInfo(float initialTime) {
         bagel::Entity entity = bagel::Entity::create();
 
         entity.addAll(Time{initialTime},
@@ -236,18 +280,17 @@ namespace mortal_kombat
                       Position{0, 0},
                       Texture{nullptr, SDL_FRect{0, 0, 100, 50}});
 
-        return entity;
+        return entity.entity();
     }
 
     /// @brief Creates a background entity
-    bagel::Entity createBackground(SDL_Texture* texture) {
+    bagel::ent_type createBackground(SDL_Texture* texture) {
         bagel::Entity entity = bagel::Entity::create();
 
         entity.addAll(Position{0, 0},
-                      Texture{texture, SDL_FRect{0, 0, Mortal_kombat::WINDOW_WIDTH,
-                                                 Mortal_kombat::WINDOW_HEIGHT}});
+                      Texture{texture, SDL_FRect{0, 0, WINDOW_WIDTH, WINDOW_HEIGHT}});
 
-        return entity;
+        return entity.entity();
     }
 }
 

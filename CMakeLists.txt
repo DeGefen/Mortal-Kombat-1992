@@ -12,6 +12,7 @@ add_executable(${PROJECT_NAME} main.cpp
         bagel_cfg.h
         mortal_kombat.h
         mortal_kombat.cpp
+        mortal_kombat.h
 )
 
 set(SDL_STATIC ON)
