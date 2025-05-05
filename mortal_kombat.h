@@ -204,8 +204,8 @@ namespace mortal_kombat
         return entity.entity();
     }
 
-    /// @brief Creates a player1's character (like Scorpion, Sub-Zero, etc.)
-    inline bagel::ent_type createPlayer1(float x, float y, Character &character) {
+    /// @brief Creates a player's character (like Scorpion, Sub-Zero, etc.)
+    inline bagel::ent_type createPlayer(float x, float y, Character &character, SDL_Renderer* renderer) {
         bagel::Entity entity = bagel::Entity::create();
 
         // Construct the texture path
@@ -239,42 +239,7 @@ namespace mortal_kombat
         return entity.entity();
     }
 
-    /// @brief Creates a player2's character (like Scorpion, Sub-Zero, etc.)
-    inline bagel::ent_type createPlayer2(float x, float y, Character &character, SDL_Renderer* renderer) {
-        bagel::Entity entity = bagel::Entity::create();
-
-        // Construct the texture path
-        std::string texturePath = "res/" + std::string(character.name) + ".png";
-
-        // Load the image as a surface
-        SDL_Surface* surface = IMG_Load(texturePath.c_str());
-        if (!surface) {
-            SDL_Log("Failed to load image: %s, SDL_Error: %s", texturePath.c_str(), SDL_GetError());
-            return {};
-        }
-
-        // Create a texture from the surface
-        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-        SDL_DestroySurface(surface); // Free the surface after creating the texture
-        if (!texture) {
-            SDL_Log("Failed to create texture: %s, SDL_Error: %s", texturePath.c_str(), SDL_GetError());
-            return {};
-        }
-
-        // Add components to the entity
-        entity.addAll(Position{x, y},
-                      Movement{0, 0},
-                      Collider{nullptr, nullptr},
-                      Texture{texture, SDL_FRect{0, 0, 100, 100}},
-                      PlayerState{State::IDLE, 0},
-                      Inputs{},
-                      character,
-                      Health{100, 100});
-
-        return entity.entity();
-    }
-
-    /// @brief Creates a Attack entity (like a punch or kick)
+    /// @brief Creates an Attack entity (like a punch or kick)
     inline bagel::ent_type createAttack(float x, float y, AttackType type) {
         bagel::Entity entity = bagel::Entity::create();
 
@@ -285,7 +250,7 @@ namespace mortal_kombat
         return entity.entity();
     }
 
-    /// @brief Creates a Special Attack entity (like a punch or kick)
+    /// @brief Creates a special attack entity (like a punch or kick)
     bagel::ent_type createSpecialAttack(float x, float y, SpecialAttackType type) {
         bagel::Entity entity = bagel::Entity::create();
 
