@@ -1,0 +1,7 @@
+char_square_size: 230, 220
+gap: 4
+shadow: 8
+
+stance = 32, 58
+walk = 1904, 58
+highpunch =

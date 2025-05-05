@@ -142,145 +142,23 @@ namespace mortal_kombat
 
     /* =============== systems =============== */
 
-    /// @brief Input system - processes player inputs and updates input history
-    void inputSystem() {
-        // Mask for entities with input components
-        auto inputMask = bagel::MaskBuilder().set<Inputs>().set<Player_state>().set<Character>().build();
-
-        for (auto entity_id = bagel::Entity({0}); entity_id.entity().id <= bagel::World::maxId().id; ++entity_id.entity().id) {
-            if (entity_id.test(inputMask)) {
-                // Process keyboard/gamepad inputs
-                // Update input history
-                // Check for special move patterns
+    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    class LifetimeSystem final: bagel::NoInstance
+    {
+    public:
+        static void run() {
+            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
+                bagel::Entity entity{e};
+                if (entity.test(mask)) {
+                    // Process the entity
+                }
             }
         }
-    }
-
-    // Movement system - handles character movement based on input and state
-    void movementSystem(bagel::Scene& scene) {
-        auto movementMask = bagel::Mask::from<Position, Velocity, Player_state, Special_attack>();
-
-        for (auto entity : scene.view(movementMask)) {
-            // Update position based on velocity
-            // Apply physics (gravity, momentum)
-        }
-    }
-
-    // Combat system - handles attacks, collisions, and damage
-    void combatSystem(bagel::Scene& scene) {
-        auto attackerMask = bagel::Mask::from<Position, Player_state, Attack>();
-        auto targetMask = bagel::Mask::from<Position, Hitbox, Health>();
-
-        // Process basic attacks
-        for (auto attacker : scene.view(attackerMask)) {
-            for (auto target : scene.view(targetMask)) {
-                // Check if attack hitbox collides with target
-                // Apply damage calculations
-            }
-        }
-
-        // Process special attacks
-        auto specialAttackMask = bagel::Mask::from<Position, Special_attack>();
-        for (auto attack : scene.view(specialAttackMask)) {
-            for (auto target : scene.view(targetMask)) {
-                // Check special attack collision
-                // Apply special effects and damage
-            }
-        }
-    }
-
-    // Animation system - updates character animations based on state
-    void animationSystem(bagel::Scene& scene) {
-        auto animationMask = bagel::Mask::from<Texture, Player_state>();
-
-        for (auto entity : scene.view(animationMask)) {
-            // Update animation frames based on state
-            // Handle sprite transitions
-        }
-    }
-
-    // Physics system - handles physical interactions using Box2D
-    void physicsSystem(bagel::Scene& scene, b2WorldId world) {
-        auto physicsMask = bagel::Mask::from<Position, Hitbox>();
-
-        for (auto entity : scene.view(physicsMask)) {
-            // Sync Box2D positions with ECS positions
-            // Handle collision responses
-        }
-    }
-
-    // Health system - handles damage, knockbacks, and death
-    void healthSystem(bagel::Scene& scene) {
-        auto healthMask = bagel::Mask::from<Health, Player_state>();
-
-        for (auto entity : scene.view(healthMask)) {
-            // Check health status
-            // Handle death animations
-            // Trigger round end if needed
-        }
-    }
-
-    // Game state system - handles round timing, victory conditions
-    void gameStateSystem(bagel::Scene& scene) {
-        auto timeMask = bagel::Mask::from<Time>();
-        auto scoreMask = bagel::Mask::from<Score>();
-
-        for (auto timeEntity : scene.view(timeMask)) {
-            // Update match timer
-            // Check for time-out condition
-        }
-
-        for (auto scoreEntity : scene.view(scoreMask)) {
-            // Track round victories
-            // Check for match end conditions
-        }
-    }
-
-    // Render system - handles drawing all visible entities
-    void renderSystem(bagel::Scene& scene, SDL_Renderer* renderer) {
-        // Background rendering
-        auto backgroundMask = bagel::Mask::from<Position, Texture>();
-        auto backgroundOnly = bagel::Mask::from<Position, Texture>().exclude<Player_state, Health>();
-
-        for (auto entity : scene.view(backgroundOnly)) {
-            // Render background and static elements
-        }
-
-        // Character/entity rendering
-        auto renderMask = bagel::Mask::from<Position, Texture>();
-        auto characterMask = bagel::Mask::from<Position, Texture, Player_state>();
-
-        for (auto entity : scene.view(characterMask)) {
-            // Render characters with appropriate animations
-        }
-
-        // UI rendering
-        auto uiMask = bagel::Mask::from<Score, Time>();
-
-        for (auto entity : scene.view(uiMask)) {
-            // Render health bars, timer, score
-        }
-    }
-
-    // Sound system - handles game audio
-    void soundSystem(bagel::Scene& scene) {
-        auto soundMask = bagel::Mask::from<Sound>();
-
-        for (auto entity : scene.view(soundMask)) {
-            // Play appropriate sounds based on game events
-        }
-    }
-
-    // Special move system - handles special attacks and their effects
-    void specialMoveSystem(bagel::Scene& scene) {
-        auto specialMoveMask = bagel::Mask::from<Inputs, Character, Player_state>();
-
-        for (auto entity : scene.view(specialMoveMask)) {
-            // Check for special move input patterns
-            // Trigger special moves when detected
-        }
-    }
-
+    private:
+        static inline bagel::Mask mask = bagel::MaskBuilder()
+                .set<Lifetime>()
+                .build();
+    };
 
     /* =============== entities =============== */
     /// @brief Entity is a unique identifier for each game object.
