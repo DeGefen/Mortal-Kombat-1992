@@ -156,10 +156,13 @@ namespace mortal_kombat
         int player2_score = 0;
     };
 
-    /* =============== systems =============== */
+    /* =============== Systems =============== */
+    /// @brief Handles the movement of entities with Position and Movement components.
+
+    /// TODO: To Gefen - change the '@brief' sentence to describe the system
 
     /// @brief Destroys entities with the Lifetime component when their lifetime expires.
-    class LifetimeSystem final: bagel::NoInstance
+    class MovementSystem final: bagel::NoInstance
     {
     public:
         static void run() {
@@ -172,39 +175,201 @@ namespace mortal_kombat
         }
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
-                .set<Lifetime>()
+                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
                 .build();
     };
 
-    /* =============== entities =============== */
+    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    class RenderSystem final: bagel::NoInstance
+    {
+    public:
+        static void run() {
+            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
+                bagel::Entity entity{e};
+                if (entity.test(mask)) {
+                    // Process the entity
+                }
+            }
+        }
+    private:
+        static inline bagel::Mask mask = bagel::MaskBuilder()
+                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .build();
+    };
+
+    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    class SoundSystem final: bagel::NoInstance
+    {
+    public:
+        static void run() {
+            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
+                bagel::Entity entity{e};
+                if (entity.test(mask)) {
+                    // Process the entity
+                }
+            }
+        }
+    private:
+        static inline bagel::Mask mask = bagel::MaskBuilder()
+                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .build();
+    };
+
+    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    class PlayerSystem final: bagel::NoInstance
+    {
+    public:
+        static void run() {
+            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
+                bagel::Entity entity{e};
+                if (entity.test(mask)) {
+                    // Process the entity
+                }
+            }
+        }
+    private:
+        static inline bagel::Mask mask = bagel::MaskBuilder()
+                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .build();
+    };
+
+    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    class CollisionSystem final: bagel::NoInstance
+    {
+    public:
+        static void run() {
+            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
+                bagel::Entity entity{e};
+                if (entity.test(mask)) {
+                    // Process the entity
+                }
+            }
+        }
+    private:
+        static inline bagel::Mask mask = bagel::MaskBuilder()
+                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .build();
+    };
+
+    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    class MatchSystem final: bagel::NoInstance
+    {
+    public:
+        static void run() {
+            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
+                bagel::Entity entity{e};
+                if (entity.test(mask)) {
+                    // Process the entity
+                }
+            }
+        }
+    private:
+        static inline bagel::Mask mask = bagel::MaskBuilder()
+                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .build();
+    };
+
+    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    class WinSystem final: bagel::NoInstance
+    {
+    public:
+        static void run() {
+            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
+                bagel::Entity entity{e};
+                if (entity.test(mask)) {
+                    // Process the entity
+                }
+            }
+        }
+    private:
+        static inline bagel::Mask mask = bagel::MaskBuilder()
+                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .build();
+    };
+
+    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    class ClockSystem final: bagel::NoInstance
+    {
+    public:
+        static void run() {
+            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
+                bagel::Entity entity{e};
+                if (entity.test(mask)) {
+                    // Process the entity
+                }
+            }
+        }
+    private:
+        static inline bagel::Mask mask = bagel::MaskBuilder()
+                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .build();
+    };
+
+    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    class InputSystem final: bagel::NoInstance
+    {
+    public:
+        static void run() {
+            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
+                bagel::Entity entity{e};
+                if (entity.test(mask)) {
+                    // Process the entity
+                }
+            }
+        }
+    private:
+        static inline bagel::Mask mask = bagel::MaskBuilder()
+                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .build();
+    };
+
+    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    class AttackSystem final: bagel::NoInstance
+    {
+    public:
+        static void run() {
+            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
+                bagel::Entity entity{e};
+                if (entity.test(mask)) {
+                    // Process the entity
+                }
+            }
+        }
+    private:
+        static inline bagel::Mask mask = bagel::MaskBuilder()
+                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .build();
+    };
+
+    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    class SpecialAttackSystem final: bagel::NoInstance
+    {
+    public:
+        static void run() {
+            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
+                bagel::Entity entity{e};
+                if (entity.test(mask)) {
+                    // Process the entity
+                }
+            }
+        }
+    private:
+        static inline bagel::Mask mask = bagel::MaskBuilder()
+                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .build();
+    };
+
+    /* =============== Entities =============== */
     /// @brief Entity is a unique identifier for each game object.
 
     static constexpr int WINDOW_WIDTH = 800;
     static constexpr int WINDOW_HEIGHT = 600;
 
-    /// @brief Creates Mario entity.
-    /// @param x,y Position of the entity in the game world.
-    /// @param renderer SDL renderer used to create the texture.
-    /// @return A `bagel::ent_type` representing the Mario entity.
-    inline bagel::ent_type createMario(float x, float y, SDL_Renderer* renderer) {
-        bagel::Entity entity = bagel::Entity::create();
-
-        entity.addAll(
-                    Position{x, y},
-                    MarioState{},
-                    Movement{},
-                    Physics{},
-                    Texture{},
-                    AnimatedImage{},
-                    Collider{},
-                    Input{},
-                    State{}
-                    );
-
-        return entity.entity();
-    }
-
     /// @brief Creates a player's character (like Scorpion, Sub-Zero, etc.)
+    /// @param x,y Position of the entity in the game world.
+    /// @param character Character data for the player.
+    /// @param renderer SDL renderer used to create the texture.
+    /// @return A `bagel::ent_type` representing the player entity.
     inline bagel::ent_type createPlayer(float x, float y, Character &character, SDL_Renderer* renderer) {
         bagel::Entity entity = bagel::Entity::create();
 
@@ -239,7 +404,10 @@ namespace mortal_kombat
         return entity.entity();
     }
 
-    /// @brief Creates an Attack entity (like a punch or kick)
+    /// @brief Creates an Attack entity (like a punch or kick).
+    /// @param x,y Position of the entity in the game world.
+    /// @param type Type of the attack.
+    /// @return A `bagel::ent_type` representing the attack entity.
     inline bagel::ent_type createAttack(float x, float y, AttackType type) {
         bagel::Entity entity = bagel::Entity::create();
 
@@ -250,7 +418,10 @@ namespace mortal_kombat
         return entity.entity();
     }
 
-    /// @brief Creates a special attack entity (like a punch or kick)
+    /// @brief Creates a special attack entity.
+    /// @param x,y Position of the entity in the game world.
+    /// @param type Type of the special attack.
+    /// @return A `bagel::ent_type` representing the special attack entity.
     bagel::ent_type createSpecialAttack(float x, float y, SpecialAttackType type) {
         bagel::Entity entity = bagel::Entity::create();
 
@@ -261,7 +432,10 @@ namespace mortal_kombat
         return entity.entity();
     }
 
-    /// @brief Creates a static platform/boundary
+    /// @brief Creates a static platform/boundary.
+    /// @param x,y Position of the boundary in the game world.
+    /// @param width,height Dimensions of the boundary.
+    /// @return A `bagel::ent_type` representing the boundary entity.
     bagel::ent_type createBoundary(float x, float y, float width, float height) {
         bagel::Entity entity = bagel::Entity::create();
 
@@ -271,7 +445,9 @@ namespace mortal_kombat
         return entity.entity();
     }
 
-    /// @brief Creates a game info entity
+    /// @brief Creates a game info entity.
+    /// @param initialTime Initial time for the game.
+    /// @return A `bagel::ent_type` representing the game info entity.
     bagel::ent_type createGameInfo(float initialTime) {
         bagel::Entity entity = bagel::Entity::create();
 
@@ -283,7 +459,9 @@ namespace mortal_kombat
         return entity.entity();
     }
 
-    /// @brief Creates a background entity
+    /// @brief Creates a background entity.
+    /// @param texture SDL texture for the background.
+    /// @return A `bagel::ent_type` representing the background entity.
     bagel::ent_type createBackground(SDL_Texture* texture) {
         bagel::Entity entity = bagel::Entity::create();
 
