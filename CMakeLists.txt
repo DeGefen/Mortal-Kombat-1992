@@ -12,6 +12,8 @@ add_executable(${PROJECT_NAME} main.cpp
         bagel_cfg.h
         mortal_kombat.h
         mortal_kombat.cpp
+        char_info.h
+        char_info.cpp
 )
 
 set(SDL_STATIC ON)
@@ -36,6 +38,6 @@ add_custom_command(
         TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E
         copy_directory_if_different
-            "${PROJECT_SOURCE_DIR}/res"
-            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/res"
+        "${PROJECT_SOURCE_DIR}/res"
+        "$<TARGET_FILE_DIR:${PROJECT_NAME}>/res"
 )
