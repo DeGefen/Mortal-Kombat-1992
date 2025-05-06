@@ -103,9 +103,6 @@ namespace character {
             bool right = false; // true = right, false = left
             bool walkBack = false; // true = walk back, false = walk forward
         };
-
-
-
     };
 
 }

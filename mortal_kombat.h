@@ -9,29 +9,6 @@
 
 namespace mortal_kombat
 {
-    class Mortal_kombat {
-    public:
-        Mortal_kombat();
-
-        ~Mortal_kombat();
-
-        void run();
-
-    private:
-        static constexpr int FPS = 60;
-        static constexpr float BOX_SCALE = 10.0f;
-        static constexpr float TEX_SCALE = 0.5f;
-        static constexpr SDL_FRect
-        BALL_TEX = {404, 580, 76, 76};
-
-        SDL_Texture *tex;
-        SDL_Renderer *ren;
-        SDL_Window *win;
-
-        b2WorldId world;
-        b2BodyId ballBody;
-    };
-
     /* =============== components =============== */
     /// @brief Components are the data structures that hold the state of the game objects.
 
@@ -159,9 +136,7 @@ namespace mortal_kombat
     /* =============== Systems =============== */
     /// @brief Handles the movement of entities with Position and Movement components.
 
-    /// TODO: To Gefen - change the '@brief' sentence to describe the system
-
-    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    /// @brief Updates the position of entities based on their movement components.
     class MovementSystem final: bagel::NoInstance
     {
     public:
@@ -175,11 +150,12 @@ namespace mortal_kombat
         }
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
-                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .set<Position>()
+                .set<Movement>()
                 .build();
     };
 
-    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    /// @brief Renders entities with position and texture components to the screen.
     class RenderSystem final: bagel::NoInstance
     {
     public:
@@ -193,11 +169,12 @@ namespace mortal_kombat
         }
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
-                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .set<Position>()
+                .set<Texture>()
                 .build();
     };
 
-    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    /// @brief Plays sounds for entities with sound components.
     class SoundSystem final: bagel::NoInstance
     {
     public:
@@ -211,11 +188,11 @@ namespace mortal_kombat
         }
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
-                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .set<Sound>()
                 .build();
     };
 
-    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    /// @brief Manages player-specific logic, such as state and character updates.
     class PlayerSystem final: bagel::NoInstance
     {
     public:
@@ -229,11 +206,12 @@ namespace mortal_kombat
         }
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
-                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .set<PlayerState>()
+                .set<Character>()
                 .build();
     };
 
-    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    /// @brief Handles collision detection and response for entities with colliders.
     class CollisionSystem final: bagel::NoInstance
     {
     public:
@@ -247,11 +225,12 @@ namespace mortal_kombat
         }
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
-                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .set<Collider>()
+                .set<Position>()
                 .build();
     };
 
-    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    /// @brief Manages match-related logic, such as health updates and round progression.
     class MatchSystem final: bagel::NoInstance
     {
     public:
@@ -265,11 +244,11 @@ namespace mortal_kombat
         }
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
-                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .set<Health>()
                 .build();
     };
 
-    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    /// @brief Determines the winner of the match based on scores.
     class WinSystem final: bagel::NoInstance
     {
     public:
@@ -283,11 +262,11 @@ namespace mortal_kombat
         }
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
-                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .set<Score>()
                 .build();
     };
 
-    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    /// @brief Updates the game clock and manages time-related logic.
     class ClockSystem final: bagel::NoInstance
     {
     public:
@@ -301,11 +280,11 @@ namespace mortal_kombat
         }
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
-                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .set<Time>()
                 .build();
     };
 
-    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    /// @brief Processes player inputs and updates input history.
     class InputSystem final: bagel::NoInstance
     {
     public:
@@ -319,11 +298,11 @@ namespace mortal_kombat
         }
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
-                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .set<Inputs>()
                 .build();
     };
 
-    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    /// @brief Handles attack logic, such as applying damage and managing hitboxes.
     class AttackSystem final: bagel::NoInstance
     {
     public:
@@ -337,11 +316,12 @@ namespace mortal_kombat
         }
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
-                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .set<Attack>()
+                .set<Health>()
                 .build();
     };
 
-    /// @brief Destroys entities with the Lifetime component when their lifetime expires.
+    /// @brief Manages special attack logic, including damage and hitbox effects.
     class SpecialAttackSystem final: bagel::NoInstance
     {
     public:
@@ -355,7 +335,8 @@ namespace mortal_kombat
         }
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
-                .set<PlayerState>() // TODO: To Gefen - change the PlayerState and add more components to the mask :)
+                .set<Attack>()
+                .set<Health>()
                 .build();
     };
 
