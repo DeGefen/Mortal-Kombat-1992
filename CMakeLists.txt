@@ -14,6 +14,7 @@ add_executable(${PROJECT_NAME} main.cpp
         mortal_kombat.cpp
         char_info.h
         char_info.cpp
+
 )
 
 set(SDL_STATIC ON)
