@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
 #include <box2d/box2d.h>
+#include <vector>
 
 using namespace character;
 
@@ -24,11 +25,21 @@ MK::MK()
         return;
     }
 
+    const SDL_PixelFormatDetails *fmt = SDL_GetPixelFormatDetails(surf->format);
+
+    SDL_SetSurfaceColorKey(surf, true, SDL_MapRGB(fmt, nullptr,
+                                                  CharacterAnimations::COLOR_IGNORE_RED,
+                                                  CharacterAnimations::COLOR_IGNORE_GREEN,
+                                                  CharacterAnimations::COLOR_IGNORE_BLUE));
+
     tex = SDL_CreateTextureFromSurface(ren, surf);
     if (tex == nullptr) {
         std::cout << SDL_GetError() << std::endl;
         return;
     }
+
+    SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+
     SDL_DestroySurface(surf);
 }
 
@@ -46,20 +57,26 @@ MK::~MK()
 
 void MK::run()
 {
-    SDL_SetRenderDrawColor(ren, 0,0,0,255);
+    SDL_SetRenderDrawColor(ren, 30,30,30,255);
     SDL_FRect r{200,300,
                 CharacterAnimations::CHAR_SQUARE_WIDTH * CharacterAnimations::SCALE_CHARACTER,
                 CharacterAnimations::CHAR_SQUARE_HEIGHT * CharacterAnimations::SCALE_CHARACTER};
 
     SDL_Event event;
     SDL_FRect rect;
-    CharacterAnimations::Squence seq[] = {
+    std::vector<CharacterAnimations::Squence> seq = {
             {CharacterAnimations::Action::STANCE, 30},
             {CharacterAnimations::Action::WALK, 20},
             {CharacterAnimations::Action::LOW_PUNCH, 5},
             {CharacterAnimations::Action::STANCE, 1},
             {CharacterAnimations::Action::UPPERCUT, 5},
             {CharacterAnimations::Action::STANCE, 3},
+            {CharacterAnimations::Action::LOW_PUNCH_SPREE, 10},
+            {CharacterAnimations::Action::STANCE, 1},
+            {CharacterAnimations::Action::HIGH_KICK, 10},
+            {CharacterAnimations::Action::STANCE, 1},
+            {CharacterAnimations::Action::LOWKICK_SWEEP, 8},
+            {CharacterAnimations::Action::STANCE, 4},
             {CharacterAnimations::Action::WALK, 20, false, true},
             {CharacterAnimations::Action::TORSO_HIT, 5},
             {CharacterAnimations::Action::STANCE, 2},
@@ -70,36 +87,28 @@ void MK::run()
             {CharacterAnimations::Action::STANCE, 10},
     };
 
-    int frames = 14;
 
-    for (int i = 0; i < frames; ++i) {
-        for (int j = 0; j < seq[i].frame; ++j) {
+    for (auto & s : seq) {
+        for (int j = 0; j < s.frame; ++j) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
-                i = frames;
+                return;
             }
         }
 
-        int k = j;
-        if (seq[i].action == CharacterAnimations::Action::WALK) {
-            if (seq[i].walkBack) {
-                r.x += -3;
-                k = seq[i].frame - j - 1;
-            }
-            else r.x += 3;
-        }
-        if (seq[i].action == CharacterAnimations::Action::TORSO_HIT) {
+        int k = s.walkBack ? s.frame - j - 1 : j;
+        if (s.action == CharacterAnimations::Action::WALK)
+            r.x += (k % 7 > 3 ? 6.f : 3.f) * (s.walkBack ? (-1) : 1);
+
+        if (s.action == CharacterAnimations::Action::TORSO_HIT)
             r.x += -1;
-        }
-        if (seq[i].action == CharacterAnimations::Action::UPPERCUT_HIT
-            && j >= CharacterData::SUBZERO_SPRITE[static_cast<int>(CharacterAnimations::Action::UPPERCUT_HIT)].frameCount - 1) {
+
+        if (s.action == CharacterAnimations::Action::UPPERCUT_HIT
+            && j >= CharacterData::SUBZERO_SPRITE[static_cast<int>(CharacterAnimations::Action::UPPERCUT_HIT)].frameCount - 1)
             k = CharacterData::SUBZERO_SPRITE[static_cast<int>(CharacterAnimations::Action::UPPERCUT_HIT)].frameCount - 1;
-        }
-
-
 
         rect = CharacterAnimations::getFrame(CharacterAnimations::SUBZERO,
-                                             seq[i].action ,
+                                             s.action ,
                                              k);
 
         SDL_RenderClear(ren);
@@ -108,7 +117,7 @@ void MK::run()
                 nullptr, SDL_FLIP_NONE);
         SDL_RenderPresent(ren);
 
-        SDL_Delay(70);
+        SDL_Delay(75);
         }
     }
 }
