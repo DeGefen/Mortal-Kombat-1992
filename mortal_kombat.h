@@ -1,9 +1,12 @@
 #pragma once
+#include "mortal_kombat_info.h"
+#include <functional>
 #include "SDL3/SDL.h"
 #include "box2d/box2d.h"
 #include "bagel.h"
 #include "lib/box2d/src/body.h"
 #include <string>
+
 
 #include "SDL3_image/SDL_image.h"
 
@@ -25,7 +28,8 @@ namespace mortal_kombat
     /// @brief Texture component holds the SDL texture and its rectangle for rendering.
     struct Texture {
         SDL_Texture *tex = nullptr;
-        SDL_FRect rect = {0, 0, 0, 0}; // Source rectangle for texture
+        SDL_FRect srcRect = {0, 0, 0, 0}; // Source rectangle for texture
+        SDL_FRect rect = {0, 0, 0, 0}; // Destination rectangle for rendering
     };
 
     /// @brief Texture component holds the SDL texture and its rectangle for rendering.
@@ -46,7 +50,8 @@ namespace mortal_kombat
     /// @brief Enum State holds the different states of the player.
     enum class State {
         STANCE = 0,
-        WALK,
+        WALK_FORWARDS,
+        WALK_BACKWARDS,
         LOW_PUNCH,
         LOW_PUNCH_SPREE,
         BODY_TO_BODY_PUNCH,
@@ -54,20 +59,20 @@ namespace mortal_kombat
         HIGH_PUNCH_SPREE,
         BODY_TO_BODY_KICK,
         LOW_KICK,
-        LOWKICK_SWEEP,
+        LOW_SWEEP_KICK,
         HIGH_KICK,
-        HIGHKICK_SWEEP,
+        HIGH_SWEEP_KICK,
         CROUCH,
         UPPERCUT,
         CROUCH_KICK,
         JUMP,
         JUMP_PUNCH,
-        JUMP_HIGHKICK,
+        JUMP_HIGH_KICK,
         LANDING,
         JUMP_BACK,
         ROLL,
         FORWARD_JUMP_PUNCH,
-        JUMP_LOWKICK,
+        JUMP_LOW_KICK,
         TORSO_HIT,
         HEAD_HIT,
         KICKBACK_TORSO_HIT,
@@ -95,9 +100,12 @@ namespace mortal_kombat
     /// @brief Player_state component holds the state for the player.
     struct PlayerState {
         State state = State::STANCE;
+        State prevState = State::STANCE;
         bool direction = RIGHT;
         bool isJumping = false; // Whether the player is jumping
-        int busy_frames = 0; // Number of frames the player is busy
+        int busyFrames = 0; // Total frames spent in the current state
+        int currFrame = 0; //  Frames spent in the current state
+        bool busy = false; // Whether the player is busy
 
         static constexpr bool LEFT = true;
         static constexpr bool RIGHT = false;
@@ -117,8 +125,7 @@ namespace mortal_kombat
 //        bool block = false;
 //    };
 
-    using Input = Uint8;
-
+    using Input = Uint16;
 
         /// @brief Inputs component holds the input, and input history for the player.
     struct Inputs {
@@ -135,16 +142,31 @@ namespace mortal_kombat
         static constexpr Input HIGH_PUNCH = 1 << 5;
         static constexpr Input LOW_KICK = 1 << 6;
         static constexpr Input HIGH_KICK = 1 << 7;
-        static constexpr Input BLOCK = 0xD; // Use all bits expect Down
+        static constexpr Input BLOCK = 1 << 8;
+        static constexpr Input DIRECTION_RIGHT = 1 << 9;
+        static constexpr Input DIRECTION_LEFT = 1 << 10;
+        static constexpr Input JUMPING = 1 << 11;
         static constexpr Input RESET = 0;
 
         static constexpr Input UPPERCUT = Inputs::DOWN | Inputs::HIGH_PUNCH;
         static constexpr Input CROUCH_KICK = Inputs::DOWN | Inputs::LOW_KICK;
-        static constexpr Input LOW_SWEEP_KICK_RIGHT = Inputs::LEFT | Inputs::LOW_KICK;
-        static constexpr Input LOW_SWEEP_KICK_LEFT = Inputs::RIGHT | Inputs::LOW_KICK;
-        static constexpr Input HIGH_SWEEP_KICK_RIGHT = Inputs::LEFT | Inputs::HIGH_KICK;
-        static constexpr Input HIGH_SWEEP_KICK_LEFT = Inputs::RIGHT | Inputs::HIGH_KICK;
+        static constexpr Input LOW_SWEEP_KICK_RIGHT = Inputs::LEFT | Inputs::LOW_KICK | Inputs::DIRECTION_RIGHT;
+        static constexpr Input LOW_SWEEP_KICK_LEFT = Inputs::RIGHT | Inputs::LOW_KICK | Inputs::DIRECTION_LEFT;
+        static constexpr Input HIGH_SWEEP_KICK_RIGHT = Inputs::LEFT | Inputs::HIGH_KICK | Inputs::DIRECTION_RIGHT;
+        static constexpr Input HIGH_SWEEP_KICK_LEFT = Inputs::RIGHT | Inputs::HIGH_KICK | Inputs::DIRECTION_LEFT;
         static constexpr Input CROUCH_BLOCK = Inputs::DOWN | Inputs::BLOCK;
+        static constexpr Input WALK_FORWARDS_RIGHT = Inputs::RIGHT | Inputs::DIRECTION_RIGHT;
+        static constexpr Input WALK_FORWARDS_LEFT = Inputs::LEFT | Inputs::DIRECTION_LEFT;
+        static constexpr Input WALK_BACKWARDS_RIGHT = Inputs::LEFT | Inputs::DIRECTION_RIGHT;
+        static constexpr Input WALK_BACKWARDS_LEFT = Inputs::RIGHT | Inputs::DIRECTION_LEFT;
+        static constexpr Input JUMP_PUNCH = Inputs::LOW_PUNCH | Inputs::JUMPING;
+        static constexpr Input JUMP_HIGH_KICK = Inputs::HIGH_KICK | Inputs::JUMPING;
+        static constexpr Input JUMP_LOW_KICK = Inputs::LOW_KICK | Inputs::JUMPING;
+
+        bool test(Input input) const
+        {
+            return (history[index] & input) == input;
+        }
     };
 
     enum class AttackType
@@ -186,8 +208,12 @@ namespace mortal_kombat
     /// @brief Character component holds the character information of the player.
     struct Character {
         char name[10] = {};
+        CharacterData::CharacterSpriteInfo *sprite{};
         Input special_moves_input[3] = {};
         int playerNumber = 1;
+
+        static constexpr float WALK_SPEED_BACKWARDS = 4;
+        static constexpr float WALK_SPEED_FORWARDS = 5;
     };
 
     /// @brief Health component holds the maximum and current health of the player.
@@ -228,15 +254,42 @@ namespace mortal_kombat
     };
 
     /// @brief Renders entities with position and texture components to the screen.
-    class RenderSystem final: bagel::NoInstance
+    class RenderSystem
     {
     public:
-        static void run();
+        RenderSystem();
+        ~RenderSystem();
+        void run();
+        static SDL_Renderer* getRenderer() { return ren; }
+
+        static constexpr Uint8 COLOR_IGNORE_RED = 165;
+        static constexpr Uint8 COLOR_IGNORE_GREEN = 231;
+        static constexpr Uint8 COLOR_IGNORE_BLUE = 255;
+        static constexpr int WINDOW_WIDTH = 800;
+        static constexpr int WINDOW_HEIGHT = 600;
     private:
+
+        static constexpr int CHAR_SQUARE_WIDTH = 230;
+        static constexpr int CHAR_SQUARE_HEIGHT = 220;
+        static constexpr int NEXT_FRAME_OFFSET = 4;
+        static constexpr int SHADOW_OFFSET = 8;
+        static constexpr float SCALE_CHARACTER = 0.8f;
+
         static inline bagel::Mask mask = bagel::MaskBuilder()
                 .set<Position>()
                 .set<Texture>()
                 .build();
+
+        static inline bagel::Mask maskPlayer = bagel::MaskBuilder()
+                .set<PlayerState>()
+                .set<Character>()
+                .build();
+
+        static SDL_Renderer* ren;
+        static SDL_Window* win;
+
+        // Returns the sprite rectangle for a given action and frame
+        static SDL_FRect getCharacterFrame(const Character& character, State action, int frame, bool shadow = false);
     };
 
     /// @brief Plays sounds for entities with sound components.
@@ -263,6 +316,7 @@ namespace mortal_kombat
                                   Character character, Uint64 maxTimeMs);
 
         static inline bagel::Mask mask = bagel::MaskBuilder()
+                .set<Movement>()
                 .set<Input>()
                 .set<PlayerState>()
                 .set<Character>()
@@ -352,15 +406,12 @@ namespace mortal_kombat
     /* =============== Entities =============== */
     /// @brief Entity is a unique identifier for each game object.
 
-    static constexpr int WINDOW_WIDTH = 800;
-    static constexpr int WINDOW_HEIGHT = 600;
-
     /// @brief Creates a player's character (like Scorpion, Sub-Zero, etc.)
     /// @param x,y Position of the entity in the game world.
     /// @param character Character data for the player.
-    /// @param renderer SDL renderer used to create the texture.
+    /// @param renderer SDL renderer for rendering the texture.
     /// @return A `bagel::ent_type` representing the player entity.
-    inline bagel::ent_type createPlayer(float x, float y, Character &character, SDL_Renderer* renderer) {
+    inline bagel::ent_type createPlayer(float x, float y, Character character, SDL_Renderer* renderer) {
         bagel::Entity entity = bagel::Entity::create();
 
         // Construct the texture path
@@ -373,6 +424,13 @@ namespace mortal_kombat
             return {};
         }
 
+        const SDL_PixelFormatDetails *fmt = SDL_GetPixelFormatDetails(surface->format);
+
+        SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
+                                                      RenderSystem::COLOR_IGNORE_RED,
+                                                      RenderSystem::COLOR_IGNORE_GREEN,
+                                                      RenderSystem::COLOR_IGNORE_BLUE));
+
         // Create a texture from the surface
         SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
         SDL_DestroySurface(surface); // Free the surface after creating the texture
@@ -383,10 +441,10 @@ namespace mortal_kombat
 
         // Add components to the entity
         entity.addAll(Position{x, y},
-                      Movement{0, 0},
+                      Movement{1, 0},
                       Collider{nullptr, nullptr},
-                      Texture{texture, SDL_FRect{0, 0, 100, 100}},
-                      PlayerState{State::STANCE, 0},
+                      Texture{texture},
+                      PlayerState{},
                       Inputs{},
                       character,
                       Health{100, 100});
@@ -412,7 +470,7 @@ namespace mortal_kombat
     /// @param x,y Position of the entity in the game world.
     /// @param type Type of the special attack.
     /// @return A `bagel::ent_type` representing the special attack entity.
-    bagel::ent_type createSpecialAttack(float x, float y, SpecialAttackType type) {
+    inline bagel::ent_type createSpecialAttack(float x, float y, SpecialAttackType type) {
         bagel::Entity entity = bagel::Entity::create();
 
         entity.addAll(Position{x, y},
@@ -424,9 +482,9 @@ namespace mortal_kombat
 
     /// @brief Creates a static platform/boundary.
     /// @param x,y Position of the boundary in the game world.
-    /// @param width,height Dimensions of the boundary.
+    /// @param width, height Dimensions of the boundary.
     /// @return A `bagel::ent_type` representing the boundary entity.
-    bagel::ent_type createBoundary(float x, float y, float width, float height) {
+    inline bagel::ent_type createBoundary(float x, float y, float width, float height) {
         bagel::Entity entity = bagel::Entity::create();
 
         entity.addAll(Position{x, y},
@@ -438,7 +496,7 @@ namespace mortal_kombat
     /// @brief Creates a game info entity.
     /// @param initialTime Initial time for the game.
     /// @return A `bagel::ent_type` representing the game info entity.
-    bagel::ent_type createGameInfo(float initialTime) {
+    inline bagel::ent_type createGameInfo(float initialTime) {
         bagel::Entity entity = bagel::Entity::create();
 
         entity.addAll(Time{initialTime},
@@ -452,14 +510,24 @@ namespace mortal_kombat
     /// @brief Creates a background entity.
     /// @param texture SDL texture for the background.
     /// @return A `bagel::ent_type` representing the background entity.
-    bagel::ent_type createBackground(SDL_Texture* texture) {
+    inline bagel::ent_type createBackground(SDL_Texture* texture) {
         bagel::Entity entity = bagel::Entity::create();
 
         entity.addAll(Position{0, 0},
-                      Texture{texture, SDL_FRect{0, 0, WINDOW_WIDTH, WINDOW_HEIGHT}});
+                      Texture{texture, SDL_FRect{0, 0, RenderSystem::WINDOW_WIDTH, RenderSystem::WINDOW_HEIGHT}});
 
         return entity.entity();
     }
+
+    struct Characters
+    {
+        constexpr static Character SUBZERO = {
+            "Sub-Zero",
+            const_cast<CharacterData::CharacterSpriteInfo *>(CharacterData::SUBZERO_SPRITE),
+        {},
+            1
+        };
+    };
 }
 
 

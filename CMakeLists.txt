@@ -12,8 +12,7 @@ add_executable(BAGEL main.cpp
         bagel_cfg.h
         mortal_Kombat.cpp
         mortal_Kombat.h
-        character.cpp
-        character.h
+        mortal_kombat_info.h
 )
 
 set(SDL_STATIC ON)
