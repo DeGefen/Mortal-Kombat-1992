@@ -1,9 +1,12 @@
 #pragma once
+#include "mortal_kombat_info.h"
+#include <functional>
 #include "SDL3/SDL.h"
 #include "box2d/box2d.h"
 #include "bagel.h"
 #include "lib/box2d/src/body.h"
 #include <string>
+
 
 #include "SDL3_image/SDL_image.h"
 
@@ -25,7 +28,8 @@ namespace mortal_kombat
     /// @brief Texture component holds the SDL texture and its rectangle for rendering.
     struct Texture {
         SDL_Texture *tex = nullptr;
-        SDL_FRect rect = {0, 0, 0, 0}; // Source rectangle for texture
+        SDL_FRect srcRect = {0, 0, 0, 0}; // Source rectangle for texture
+        SDL_FRect rect = {0, 0, 0, 0}; // Destination rectangle for rendering
     };
 
     /// @brief Texture component holds the SDL texture and its rectangle for rendering.
@@ -45,32 +49,124 @@ namespace mortal_kombat
 
     /// @brief Enum State holds the different states of the player.
     enum class State {
-        IDLE, WALK_LEFT, WALK_RIGHT, CROUCH, WALK, JUMP,
-        LOW_PUNCH, HIGH_PUNCH, LOW_KICK, HIGH_KICK,
-        LOW_JUMP_KICK, HIGH_JUMP_KICK, JUMP_PUNCH,
-        UPPERCUT, CROUCH_KICK, LOW_SWEEP_KICK,
-        HIGH_SWEEP_KICK, BLOCK, SPECIAL_MOVE, CHEER, WON,
-        KNOCKED_BACK, KNOCKED_UP, HIT
+        STANCE = 0,
+        WALK_FORWARDS,
+        WALK_BACKWARDS,
+        LOW_PUNCH,
+        LOW_PUNCH_SPREE,
+        BODY_TO_BODY_PUNCH,
+        HIGH_PUNCH,
+        HIGH_PUNCH_SPREE,
+        BODY_TO_BODY_KICK,
+        LOW_KICK,
+        LOW_SWEEP_KICK,
+        HIGH_KICK,
+        HIGH_SWEEP_KICK,
+        CROUCH,
+        UPPERCUT,
+        CROUCH_KICK,
+        JUMP,
+        JUMP_PUNCH,
+        JUMP_HIGH_KICK,
+        LANDING,
+        JUMP_BACK,
+        ROLL,
+        FORWARD_JUMP_PUNCH,
+        JUMP_LOW_KICK,
+        TORSO_HIT,
+        HEAD_HIT,
+        KICKBACK_TORSO_HIT,
+        CROUCH_HIT,
+        FALL,
+        UPPERCUT_HIT,
+        NUTS_HIT,
+        FALL_INPLACE,
+        GETUP,
+        CAUGHT,
+        THROWN,
+        BLOCK,
+        CROUCH_BLOCK,
+        TURN_RIGHT_TO_LEFT,
+        TURN_LEFT_TO_RIGHT,
+        SPECIAL_1,
+        SPECIAL_2,
+        SPECIAL_3,
+        GIDDY,
+        FINISH_HIM,
+        GIDDY_FALL,
+        WIN
     };
 
     /// @brief Player_state component holds the state for the player.
     struct PlayerState {
-        State state = State::IDLE;
-        int busy_frames = 0; // Number of frames the player is busy
+        State state = State::STANCE;
+        State prevState = State::STANCE;
+        bool direction = RIGHT;
+        bool isJumping = false; // Whether the player is jumping
+        int busyFrames = 0; // Total frames spent in the current state
+        int currFrame = 0; //  Frames spent in the current state
+        bool busy = false; // Whether the player is busy
+
+        static constexpr bool LEFT = true;
+        static constexpr bool RIGHT = false;
     };
 
     /// @brief Input component holds the input state for the player.
-    enum class Input
-    {
-        UP, DOWN, LEFT, RIGHT,
-        LOW_PUNCH, HIGH_PUNCH, LOW_KICK, HIGH_KICK, BLOCK,
-    };
+//    struct Input
+//    {
+//        bool up = false;
+//        bool down = false;
+//        bool left = false;
+//        bool right = false;
+//        bool low_punch = false;
+//        bool high_punch = false;
+//        bool low_kick = false;
+//        bool high_kick = false;
+//        bool block = false;
+//    };
 
-    /// @brief Inputs component holds the input, and input history for the player.
+    using Input = Uint16;
+
+        /// @brief Inputs component holds the input, and input history for the player.
     struct Inputs {
-        Input history[20] = {};
-        int frame_number[20] = {};
+        static constexpr int MAX_HISTORY = 20;
+        Input history[MAX_HISTORY] = {};
+        Uint64 historyTime[MAX_HISTORY] = {};
         int index = 0;
+
+        static constexpr Input UP = 1;
+        static constexpr Input DOWN = 1 << 1;
+        static constexpr Input LEFT = 1 << 2;
+        static constexpr Input RIGHT = 1 << 3;
+        static constexpr Input LOW_PUNCH = 1 << 4;
+        static constexpr Input HIGH_PUNCH = 1 << 5;
+        static constexpr Input LOW_KICK = 1 << 6;
+        static constexpr Input HIGH_KICK = 1 << 7;
+        static constexpr Input BLOCK = 1 << 8;
+        static constexpr Input DIRECTION_RIGHT = 1 << 9;
+        static constexpr Input DIRECTION_LEFT = 1 << 10;
+        static constexpr Input JUMPING = 1 << 11;
+        static constexpr Input RESET = 0;
+
+        static constexpr Input UPPERCUT = Inputs::DOWN | Inputs::HIGH_PUNCH;
+        static constexpr Input CROUCH_KICK = Inputs::DOWN | Inputs::LOW_KICK;
+        static constexpr Input LOW_SWEEP_KICK_RIGHT = Inputs::LEFT | Inputs::LOW_KICK | Inputs::DIRECTION_RIGHT;
+        static constexpr Input LOW_SWEEP_KICK_LEFT = Inputs::RIGHT | Inputs::LOW_KICK | Inputs::DIRECTION_LEFT;
+        static constexpr Input HIGH_SWEEP_KICK_RIGHT = Inputs::LEFT | Inputs::HIGH_KICK | Inputs::DIRECTION_RIGHT;
+        static constexpr Input HIGH_SWEEP_KICK_LEFT = Inputs::RIGHT | Inputs::HIGH_KICK | Inputs::DIRECTION_LEFT;
+        static constexpr Input CROUCH_BLOCK = Inputs::DOWN | Inputs::BLOCK;
+        static constexpr Input WALK_FORWARDS_RIGHT = Inputs::RIGHT | Inputs::DIRECTION_RIGHT;
+        static constexpr Input WALK_FORWARDS_LEFT = Inputs::LEFT | Inputs::DIRECTION_LEFT;
+        static constexpr Input WALK_BACKWARDS_RIGHT = Inputs::LEFT | Inputs::DIRECTION_RIGHT;
+        static constexpr Input WALK_BACKWARDS_LEFT = Inputs::RIGHT | Inputs::DIRECTION_LEFT;
+        static constexpr Input JUMP_PUNCH = Inputs::LOW_PUNCH | Inputs::JUMPING;
+        static constexpr Input JUMP_HIGH_KICK = Inputs::HIGH_KICK | Inputs::JUMPING;
+        static constexpr Input JUMP_LOW_KICK = Inputs::LOW_KICK | Inputs::JUMPING;
+
+        bool test(Input input) const
+        {
+            return (history[index] & input) == input;
+        }
     };
 
     enum class AttackType
@@ -112,7 +208,12 @@ namespace mortal_kombat
     /// @brief Character component holds the character information of the player.
     struct Character {
         char name[10] = {};
+        CharacterData::CharacterSpriteInfo *sprite{};
         Input special_moves_input[3] = {};
+        int playerNumber = 1;
+
+        static constexpr float WALK_SPEED_BACKWARDS = 4;
+        static constexpr float WALK_SPEED_FORWARDS = 5;
     };
 
     /// @brief Health component holds the maximum and current health of the player.
@@ -134,20 +235,17 @@ namespace mortal_kombat
     };
 
     /* =============== Systems =============== */
+
+    /// @brief Processes entities with the specified mask and applies a function to each entity.
+    void processEntities(bagel::Mask mask, std::function<void(bagel::Entity&)> process);
+
     /// @brief Handles the movement of entities with Position and Movement components.
 
     /// @brief Updates the position of entities based on their movement components.
     class MovementSystem final: bagel::NoInstance
     {
     public:
-        static void run() {
-            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
-                bagel::Entity entity{e};
-                if (entity.test(mask)) {
-                    // Process the entity
-                }
-            }
-        }
+        static void run();
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
                 .set<Position>()
@@ -156,36 +254,49 @@ namespace mortal_kombat
     };
 
     /// @brief Renders entities with position and texture components to the screen.
-    class RenderSystem final: bagel::NoInstance
+    class RenderSystem
     {
     public:
-        static void run() {
-            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
-                bagel::Entity entity{e};
-                if (entity.test(mask)) {
-                    // Process the entity
-                }
-            }
-        }
+        RenderSystem();
+        ~RenderSystem();
+        void run();
+        static SDL_Renderer* getRenderer() { return ren; }
+
+        static constexpr Uint8 COLOR_IGNORE_RED = 165;
+        static constexpr Uint8 COLOR_IGNORE_GREEN = 231;
+        static constexpr Uint8 COLOR_IGNORE_BLUE = 255;
+        static constexpr int WINDOW_WIDTH = 800;
+        static constexpr int WINDOW_HEIGHT = 600;
     private:
+
+        static constexpr int CHAR_SQUARE_WIDTH = 230;
+        static constexpr int CHAR_SQUARE_HEIGHT = 220;
+        static constexpr int NEXT_FRAME_OFFSET = 4;
+        static constexpr int SHADOW_OFFSET = 8;
+        static constexpr float SCALE_CHARACTER = 0.8f;
+
         static inline bagel::Mask mask = bagel::MaskBuilder()
                 .set<Position>()
                 .set<Texture>()
                 .build();
+
+        static inline bagel::Mask maskPlayer = bagel::MaskBuilder()
+                .set<PlayerState>()
+                .set<Character>()
+                .build();
+
+        static SDL_Renderer* ren;
+        static SDL_Window* win;
+
+        // Returns the sprite rectangle for a given action and frame
+        static SDL_FRect getCharacterFrame(const Character& character, State action, int frame, bool shadow = false);
     };
 
     /// @brief Plays sounds for entities with sound components.
     class SoundSystem final: bagel::NoInstance
     {
     public:
-        static void run() {
-            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
-                bagel::Entity entity{e};
-                if (entity.test(mask)) {
-                    // Process the entity
-                }
-            }
-        }
+        static void run();
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
                 .set<Sound>()
@@ -196,16 +307,17 @@ namespace mortal_kombat
     class PlayerSystem final: bagel::NoInstance
     {
     public:
-        static void run() {
-            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
-                bagel::Entity entity{e};
-                if (entity.test(mask)) {
-                    // Process the entity
-                }
-            }
-        }
+        static void run();
     private:
+        static constexpr Uint64 MAX_COMBO_TIME_MS = 500; // Maximum time between inputs to be considered a combo
+        static constexpr Uint64 MAX_ACTION_TIME_MS = 500;
+
+        static State CheckCombo(const mortal_kombat::Inputs& inputs, int currentIndex,
+                                  Character character, Uint64 maxTimeMs);
+
         static inline bagel::Mask mask = bagel::MaskBuilder()
+                .set<Movement>()
+                .set<Input>()
                 .set<PlayerState>()
                 .set<Character>()
                 .build();
@@ -215,14 +327,7 @@ namespace mortal_kombat
     class CollisionSystem final: bagel::NoInstance
     {
     public:
-        static void run() {
-            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
-                bagel::Entity entity{e};
-                if (entity.test(mask)) {
-                    // Process the entity
-                }
-            }
-        }
+        static void run();
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
                 .set<Collider>()
@@ -234,14 +339,7 @@ namespace mortal_kombat
     class MatchSystem final: bagel::NoInstance
     {
     public:
-        static void run() {
-            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
-                bagel::Entity entity{e};
-                if (entity.test(mask)) {
-                    // Process the entity
-                }
-            }
-        }
+        static void run();
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
                 .set<Health>()
@@ -252,14 +350,7 @@ namespace mortal_kombat
     class WinSystem final: bagel::NoInstance
     {
     public:
-        static void run() {
-            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
-                bagel::Entity entity{e};
-                if (entity.test(mask)) {
-                    // Process the entity
-                }
-            }
-        }
+        static void run();
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
                 .set<Score>()
@@ -270,14 +361,7 @@ namespace mortal_kombat
     class ClockSystem final: bagel::NoInstance
     {
     public:
-        static void run() {
-            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
-                bagel::Entity entity{e};
-                if (entity.test(mask)) {
-                    // Process the entity
-                }
-            }
-        }
+        static void run();
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
                 .set<Time>()
@@ -288,14 +372,7 @@ namespace mortal_kombat
     class InputSystem final: bagel::NoInstance
     {
     public:
-        static void run() {
-            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
-                bagel::Entity entity{e};
-                if (entity.test(mask)) {
-                    // Process the entity
-                }
-            }
-        }
+        static void run();
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
                 .set<Inputs>()
@@ -306,14 +383,7 @@ namespace mortal_kombat
     class AttackSystem final: bagel::NoInstance
     {
     public:
-        static void run() {
-            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
-                bagel::Entity entity{e};
-                if (entity.test(mask)) {
-                    // Process the entity
-                }
-            }
-        }
+        static void run();
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
                 .set<Attack>()
@@ -325,14 +395,7 @@ namespace mortal_kombat
     class SpecialAttackSystem final: bagel::NoInstance
     {
     public:
-        static void run() {
-            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
-                bagel::Entity entity{e};
-                if (entity.test(mask)) {
-                    // Process the entity
-                }
-            }
-        }
+        static void run();
     private:
         static inline bagel::Mask mask = bagel::MaskBuilder()
                 .set<Attack>()
@@ -343,15 +406,12 @@ namespace mortal_kombat
     /* =============== Entities =============== */
     /// @brief Entity is a unique identifier for each game object.
 
-    static constexpr int WINDOW_WIDTH = 800;
-    static constexpr int WINDOW_HEIGHT = 600;
-
     /// @brief Creates a player's character (like Scorpion, Sub-Zero, etc.)
     /// @param x,y Position of the entity in the game world.
     /// @param character Character data for the player.
-    /// @param renderer SDL renderer used to create the texture.
+    /// @param renderer SDL renderer for rendering the texture.
     /// @return A `bagel::ent_type` representing the player entity.
-    inline bagel::ent_type createPlayer(float x, float y, Character &character, SDL_Renderer* renderer) {
+    inline bagel::ent_type createPlayer(float x, float y, Character character, SDL_Renderer* renderer) {
         bagel::Entity entity = bagel::Entity::create();
 
         // Construct the texture path
@@ -364,6 +424,13 @@ namespace mortal_kombat
             return {};
         }
 
+        const SDL_PixelFormatDetails *fmt = SDL_GetPixelFormatDetails(surface->format);
+
+        SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
+                                                      RenderSystem::COLOR_IGNORE_RED,
+                                                      RenderSystem::COLOR_IGNORE_GREEN,
+                                                      RenderSystem::COLOR_IGNORE_BLUE));
+
         // Create a texture from the surface
         SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
         SDL_DestroySurface(surface); // Free the surface after creating the texture
@@ -374,10 +441,10 @@ namespace mortal_kombat
 
         // Add components to the entity
         entity.addAll(Position{x, y},
-                      Movement{0, 0},
+                      Movement{1, 0},
                       Collider{nullptr, nullptr},
-                      Texture{texture, SDL_FRect{0, 0, 100, 100}},
-                      PlayerState{State::IDLE, 0},
+                      Texture{texture},
+                      PlayerState{},
                       Inputs{},
                       character,
                       Health{100, 100});
@@ -403,7 +470,7 @@ namespace mortal_kombat
     /// @param x,y Position of the entity in the game world.
     /// @param type Type of the special attack.
     /// @return A `bagel::ent_type` representing the special attack entity.
-    bagel::ent_type createSpecialAttack(float x, float y, SpecialAttackType type) {
+    inline bagel::ent_type createSpecialAttack(float x, float y, SpecialAttackType type) {
         bagel::Entity entity = bagel::Entity::create();
 
         entity.addAll(Position{x, y},
@@ -415,9 +482,9 @@ namespace mortal_kombat
 
     /// @brief Creates a static platform/boundary.
     /// @param x,y Position of the boundary in the game world.
-    /// @param width,height Dimensions of the boundary.
+    /// @param width, height Dimensions of the boundary.
     /// @return A `bagel::ent_type` representing the boundary entity.
-    bagel::ent_type createBoundary(float x, float y, float width, float height) {
+    inline bagel::ent_type createBoundary(float x, float y, float width, float height) {
         bagel::Entity entity = bagel::Entity::create();
 
         entity.addAll(Position{x, y},
@@ -429,7 +496,7 @@ namespace mortal_kombat
     /// @brief Creates a game info entity.
     /// @param initialTime Initial time for the game.
     /// @return A `bagel::ent_type` representing the game info entity.
-    bagel::ent_type createGameInfo(float initialTime) {
+    inline bagel::ent_type createGameInfo(float initialTime) {
         bagel::Entity entity = bagel::Entity::create();
 
         entity.addAll(Time{initialTime},
@@ -443,14 +510,24 @@ namespace mortal_kombat
     /// @brief Creates a background entity.
     /// @param texture SDL texture for the background.
     /// @return A `bagel::ent_type` representing the background entity.
-    bagel::ent_type createBackground(SDL_Texture* texture) {
+    inline bagel::ent_type createBackground(SDL_Texture* texture) {
         bagel::Entity entity = bagel::Entity::create();
 
         entity.addAll(Position{0, 0},
-                      Texture{texture, SDL_FRect{0, 0, WINDOW_WIDTH, WINDOW_HEIGHT}});
+                      Texture{texture, SDL_FRect{0, 0, RenderSystem::WINDOW_WIDTH, RenderSystem::WINDOW_HEIGHT}});
 
         return entity.entity();
     }
+
+    struct Characters
+    {
+        constexpr static Character SUBZERO = {
+            "Sub-Zero",
+            const_cast<CharacterData::CharacterSpriteInfo *>(CharacterData::SUBZERO_SPRITE),
+        {},
+            1
+        };
+    };
 }
 
 
