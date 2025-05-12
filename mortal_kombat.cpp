@@ -25,6 +25,16 @@ namespace mortal_kombat
 
     MK::~MK()
     {
+        for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
+            if (bagel::Entity entity{e}; entity.has<Texture>()) {
+                auto& texture = entity.get<Texture>();
+                if (texture.tex != nullptr) {
+                    SDL_DestroyTexture(texture.tex);
+                }
+            }
+        }
+        if (b2World_IsValid(boxWorld))
+            b2DestroyWorld(boxWorld);
         if (ren != nullptr)
             SDL_DestroyRenderer(ren);
         if (win != nullptr)
@@ -48,7 +58,7 @@ namespace mortal_kombat
 
         while (true)
         {
-            b2World_Step(boxWorld, BOX2D_STEP, 1);
+            b2World_Step(boxWorld, BOX2D_STEP, 4);
             InputSystem();
             PlayerSystem();
             CollisionSystem();
@@ -107,8 +117,8 @@ namespace mortal_kombat
                 position.y += movement.vy;
 
                 b2Vec2 v;
-                v.x = position.x / SCALE_CHARACTER;
-                v.y = position.y / SCALE_CHARACTER;
+                v.x = position.x * SCALE_CHARACTER;
+                v.y = position.y * SCALE_CHARACTER;
                 b2Body_SetTransform(collider.body, v, b2Rot_identity);
 
             }
@@ -372,7 +382,7 @@ namespace mortal_kombat
 		    auto *e = static_cast<bagel::ent_type*>(b2Body_GetUserData(b));
 		    auto collider = bagel::Entity{(*e)}.get<Collider>();
 		    collider.isSensor = true;
-            printf("Collision detected between entities: ", e->id);
+            printf("%d\n", collider.isSensor);
 		}
     }
 

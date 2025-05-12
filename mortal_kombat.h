@@ -256,7 +256,7 @@ namespace mortal_kombat
 
             b2BodyDef bodyDef = b2DefaultBodyDef();
             bodyDef.type = b2_dynamicBody;
-            bodyDef.position= {x, y};
+            bodyDef.position= {(x + (CHARACTER_WIDTH/2)) *SCALE_CHARACTER, (y - (CHARACTER_HEIGHT/2)) * SCALE_CHARACTER};
 
             b2ShapeDef shapeDef = b2DefaultShapeDef();
             shapeDef.enableSensorEvents = true;
