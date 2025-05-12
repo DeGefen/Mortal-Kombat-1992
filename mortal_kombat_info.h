@@ -1,16 +1,102 @@
 #pragma once
+#include <array>
 
 namespace mortal_kombat
 {
+    /// @brief Enum State holds the different states of the player.
+    enum class State {
+        STANCE = 0,
+        WALK_FORWARDS,
+        WALK_BACKWARDS,
+        LOW_PUNCH,
+        LOW_PUNCH_SPREE,
+        BODY_TO_BODY_PUNCH,
+        HIGH_PUNCH,
+        HIGH_PUNCH_SPREE,
+        BODY_TO_BODY_KICK,
+        LOW_KICK,
+        LOW_SWEEP_KICK,
+        HIGH_KICK,
+        HIGH_SWEEP_KICK,
+        CROUCH,
+        UPPERCUT,
+        CROUCH_KICK,
+        JUMP,
+        JUMP_PUNCH,
+        JUMP_HIGH_KICK,
+        LANDING,
+        JUMP_BACK,
+        ROLL,
+        FORWARD_JUMP_PUNCH,
+        JUMP_LOW_KICK,
+        TORSO_HIT,
+        HEAD_HIT,
+        KICKBACK_TORSO_HIT,
+        CROUCH_HIT,
+        FALL,
+        UPPERCUT_HIT,
+        NUTS_HIT,
+        FALL_INPLACE,
+        GETUP,
+        CAUGHT,
+        THROWN,
+        BLOCK,
+        CROUCH_BLOCK,
+        TURN_RIGHT_TO_LEFT,
+        TURN_LEFT_TO_RIGHT,
+        SPECIAL_1,
+        SPECIAL_2,
+        SPECIAL_3,
+        GIDDY,
+        FINISH_HIM,
+        GIDDY_FALL,
+        WIN
+    };
+
+    /// @brief Enum AttackType hold the different attacks types.
+    enum class AttackType
+    {
+        LOW_PUNCH, HIGH_PUNCH, LOW_KICK, HIGH_KICK,
+        LOW_JUMP_KICK, HIGH_JUMP_KICK, JUMP_PUNCH,
+        UPPERCUT, CROUCH_KICK, LOW_SWEEP_KICK,
+        HIGH_SWEEP_KICK, BLOCK
+    };
+
+    /// @brief Enum AttackType hold the different special attacks types.
+    enum class SpecialAttackType
+    {
+        FIREBALL, TELEPORT, FLYING_KICK,
+        SPINNING_BIRD_KICK, SCORPION_PUNCH,
+        SUBZERO_FREEZE, SCORPION_TELEPORT,
+        SUBZERO_SLIDE, SCORPION_CHAIN
+    };
+
     class CharacterData {
     public:
+        static constexpr int SPRITE_SIZE = 46;
+
         struct CharacterSpriteInfo {
             int frameCount = 0;
             int x = 0, y = 0;
             int w = 230, h = 220;
         };
 
-        static constexpr CharacterSpriteInfo SUBZERO_SPRITE[]{
+        explicit constexpr CharacterData(const std::array<CharacterSpriteInfo, SPRITE_SIZE>& spriteArray)
+                    : sprite(spriteArray) {}
+
+        constexpr const CharacterSpriteInfo& operator[](State s) const {
+            return sprite[static_cast<int>(s)];
+        }
+
+        constexpr CharacterSpriteInfo& operator[](State s) {
+            return sprite[static_cast<int>(s)];
+        }
+
+    private:
+        std::array<CharacterSpriteInfo, SPRITE_SIZE> sprite;
+    };
+
+    static constexpr std::array<CharacterData::CharacterSpriteInfo, CharacterData::SPRITE_SIZE> SUBZERO_SPRITE_ARRAY{{
                 {12, 32,   58, 230, 220}, // Stance
                 {9,  3074, 58, 230, 220},  // Walk Forwards
                 {9,  3074, 58, 230, 220},  // Walk Backwards
@@ -47,7 +133,7 @@ namespace mortal_kombat
                 {6,  32,   5600, 230, 220},  // Caught
                 {7,  1670, 5600, 230, 220},  // Thrown
                 {5,  32,   6122, 230, 220},  // Block
-                {5,  1436, 6122, 230, 220},  // Crouch Block
+                {3,  1436, 6122, 230, 220},  // Crouch Block
                 {4,  2372, 6122, 230, 220},  // Turn Right to Left
                 {4,  3542, 6122, 230, 220},  // Turn Left to Right
                 {10, 32,   6644, 230, 220}, // Special 1
@@ -57,7 +143,7 @@ namespace mortal_kombat
                 {0,  1904, 7166, 230, 220},  // Finish Him
                 {7,  2606, 7166, 230, 220},  // Giddy Fall
                 {4,  32,   7688, 230, 220},  // Win
-        };
+    }};
 
-    };
-}
+    static constexpr CharacterData SUBZERO_SPRITE(SUBZERO_SPRITE_ARRAY);
+};
