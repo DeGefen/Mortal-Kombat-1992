@@ -26,6 +26,8 @@ namespace mortal_kombat
                 }
 
         SDL_SetRenderDrawColor(ren, 30,30,30,255);
+
+        prepareBoxWorld();
     }
 
     MK::~MK()
@@ -57,12 +59,11 @@ namespace mortal_kombat
 
     void MK::run()
     {
-        prepareBoxWorld();
 
         createBackground("res/Background.png");
 
-        createPlayer(200, 200, (Characters::SUBZERO), 1);
-        createPlayer(300, 200, (Characters::SUBZERO), 2);
+        createPlayer(PLAYER_1_BASE_X, PLAYER_BASE_Y, (Characters::SUBZERO), 1);
+        createPlayer(PLAYER_2_BASE_X, PLAYER_BASE_Y, (Characters::LIU_KANG), 2);
 
         while (true)
         {
@@ -71,13 +72,19 @@ namespace mortal_kombat
             CollisionSystem();
             MovementSystem();
             RenderSystem();
-            AttackSystem();
+            AttackDecaySystem();
             SDL_Delay(70);
         }
     }
 
     void MK::MovementSystem()
     {
+        static constexpr float WALK_SPEED_BACKWARDS = 4.0f;
+        static constexpr float WALK_SPEED_FORWARDS = 5.0f;
+        static constexpr float KICKBACK_SPEED = 4.0f;
+        static constexpr float UPPERCUT_SPEED = 2.0f;
+        static constexpr float UPPERCUT_VERTICAL_SPEED = 2.0f;
+
         static const bagel::Mask mask = bagel::MaskBuilder()
             .set<Position>()
             .set<Movement>()
@@ -85,6 +92,7 @@ namespace mortal_kombat
 
         static const bagel::Mask maskPlayer = bagel::MaskBuilder()
             .set<PlayerState>()
+            .set<Character>()
             .set<Collider>()
             .build();
 
@@ -99,17 +107,37 @@ namespace mortal_kombat
                 if (entity.test(maskPlayer))
                 {
                     auto& playerState = entity.get<PlayerState>();
+                    auto& character = entity.get<Character>();
                     auto& collider = entity.get<Collider>();
 
                     switch (playerState.state)
                     {
                     case State::WALK_BACKWARDS:
-                        movement.vx = WALK_SPEED_BACKWARDS * (playerState.direction == PlayerState::LEFT ? 1.0f : -1.0f);
+                        movement.vx = WALK_SPEED_BACKWARDS
+                                        * (playerState.direction == PlayerState::LEFT ? 1.0f : -1.0f);
                         break;
                     case State::WALK_FORWARDS:
                         movement.vx = WALK_SPEED_FORWARDS
                                         * (playerState.direction == PlayerState::LEFT ? -1.0f : 1.0f)
                                         * (collider.isSensor ? 0.0f : 1.0f);
+                        break;
+                    case State::KICKBACK_TORSO_HIT:
+                        movement.vx = KICKBACK_SPEED
+                                        * (playerState.direction == PlayerState::LEFT ? 1.0f : -1.0f);
+                        break;
+                    case State::UPPERCUT_HIT:
+                        if (playerState.currFrame < character.sprite[playerState.state].frameCount / 2)
+                        {
+                            movement.vy = UPPERCUT_VERTICAL_SPEED;
+                            movement.vx = UPPERCUT_SPEED
+                                        * (playerState.direction == PlayerState::LEFT ? 1.0f : -1.0f);
+                        }
+                        else
+                            movement.vy = -UPPERCUT_VERTICAL_SPEED;
+
+                        break;
+                    case State::GETUP:
+                        movement.vy = PLAYER_BASE_Y - position.y ;
                         break;
                     default:
                         movement.reset();
@@ -119,7 +147,6 @@ namespace mortal_kombat
                     position.y += movement.vy;
 
                     b2Body_SetTransform(collider.body, getPosition(position), b2Rot_identity);
-
                 }
 
             }
@@ -207,12 +234,10 @@ namespace mortal_kombat
                     auto& playerState = entity.get<PlayerState>();
                     auto& character = entity.get<Character>();
 
-                    if (playerState.busyFrames <= playerState.currFrame)
-                        playerState.busy = false;
-
                     State state;
-                    int freezeFrame = PlayerState::NONE;
+                    int freezeFrame = NONE;
                     int offSetFrame = 0;
+                    int freezeFrameDuration = 0;
                     bool busy = true;
                     bool crouching = false;
                     bool attack = false;
@@ -236,17 +261,20 @@ namespace mortal_kombat
                     {
                         state = State::CROUCH_BLOCK;
                         freezeFrame = character.sprite[state].frameCount / 2 + 1;
+                        freezeFrameDuration = 1;
                         crouching = true;
                     }
                     else if (inputs.test(Inputs::BLOCK))
                     {
                         state = State::BLOCK;
                         freezeFrame = character.sprite[state].frameCount / 2 + 1;
+                        freezeFrameDuration = 1;
                     }
                     else if (inputs.test(Inputs::CROUCH_KICK))
                     {
                         state = State::CROUCH_KICK;
                         crouching = true;
+                        attack = true;
                     }
                     else if (inputs.test(Inputs::UP))
                     {
@@ -273,7 +301,8 @@ namespace mortal_kombat
                     else if (inputs.test(Inputs::DOWN))
                     {
                         state = State::CROUCH;
-                        freezeFrame = character.sprite[state].frameCount / 2 + 1;
+                        freezeFrame = (character.sprite[state].frameCount / 2) + 1;
+                        freezeFrameDuration = 1;
                         crouching = true;
                     }
                     else if (inputs.test(Inputs::LOW_PUNCH))
@@ -314,33 +343,56 @@ namespace mortal_kombat
                         busy = false;
                     }
 
+                    if (playerState.busyFrames - 1 <= playerState.currFrame
+                        && playerState.freezeFrameDuration <= 0)
+                        playerState.busy = false;
+
+                    if (playerState.isLaying && !playerState.busy)
+                    {
+                        playerState.reset();
+                        playerState.state = State::GETUP;
+                        playerState.busyFrames = character.sprite[playerState.state].frameCount;
+                        playerState.busy = true;
+                    }
 
                     if ((!playerState.busy && state != playerState.state)
-                        || playerState.state == State::CROUCH && crouching)
+                        || playerState.state == State::CROUCH && crouching
+                        && state != State::CROUCH)
                     {
+                        playerState.reset();
                         playerState.state = state;
                         playerState.currFrame = (playerState.isCrouching && state == State::CROUCH) ? 2 : 0;
                         playerState.busyFrames = character.sprite[playerState.state].frameCount;
                         playerState.freezeFrame = freezeFrame;
+                        playerState.freezeFrameDuration = freezeFrameDuration;
                         playerState.isCrouching = crouching;
+                        playerState.isAttacking = attack;
                         playerState.busy = busy;
-                        if (attack)
-                        {
-                            auto& position = entity.get<Position>();
-                            createAttack(
-                                playerState.direction == PlayerState::LEFT ? position.x - 20 : position.x + 20,
-                                position.y, state, playerState.playerNumber);
-                        }
                     }
-                    else if (state == playerState.state)
+
+                    if (playerState.freezeFrame != NONE && state == playerState.state)
                     {
-                        playerState.currFrame = (playerState.freezeFrame != PlayerState::NONE
-                                                && playerState.currFrame >= playerState.freezeFrame)
-                                                ? playerState.freezeFrame : playerState.currFrame + 1;
+                        playerState.freezeFrameDuration = 1;
+                    }
+
+                    if (playerState.freezeFrame != NONE
+                        && playerState.currFrame + 1 >= playerState.freezeFrame
+                        && playerState.freezeFrameDuration > 0)
+                    {
+                        --playerState.freezeFrameDuration;
+                        playerState.currFrame = playerState.freezeFrame;
                     }
                     else
+                        ++playerState.currFrame;
+
+
+
+                    if (playerState.isAttacking && (playerState.currFrame % character.sprite[playerState.state].frameCount) == character.sprite[playerState.state].frameCount / 3 )
                     {
-                        playerState.currFrame = playerState.currFrame + 1;
+                        auto& position = entity.get<Position>();
+                        createAttack(
+                            playerState.direction == PlayerState::LEFT ? position.x - 20 : position.x + 20,
+                            position.y, state, playerState.playerNumber);
                     }
                 }
             }
@@ -403,54 +455,55 @@ namespace mortal_kombat
     }
 
     void MK::CollisionSystem() {
+
+        static const bagel::Mask maskAttack = bagel::MaskBuilder()
+            .set<Attack>()
+            .build();
+
+        static const bagel::Mask maskPlayer = bagel::MaskBuilder()
+            .set<PlayerState>()
+            .build();
+
+
         b2World_Step(boxWorld, BOX2D_STEP, 4);
 
         const auto se = b2World_GetSensorEvents(boxWorld);
 
         for (int i = 0; i < se.beginCount; ++i) {
+            if (!b2Shape_IsValid(se.beginEvents[i].visitorShapeId)) continue;
             b2BodyId b = b2Shape_GetBody(se.beginEvents[i].visitorShapeId);
-            auto* e_b = static_cast<bagel::ent_type*>(b2Body_GetUserData(b));
+            const auto* e_b = static_cast<bagel::ent_type*>(b2Body_GetUserData(b));
             if (!b2Shape_IsValid(se.beginEvents[i].sensorShapeId)) continue;
             b2BodyId s = b2Shape_GetBody(se.beginEvents[i].sensorShapeId);
-            auto* e_s = static_cast<bagel::ent_type*>(b2Body_GetUserData(s));
+            const auto* e_s = static_cast<bagel::ent_type*>(b2Body_GetUserData(s));
+            if (!e_b || !e_s) continue;
 
-            if (e_b && e_s) {
-                if (bagel::Entity{(*e_s)}.has<PlayerState>()) {
-                    auto& collider = bagel::Entity{(*e_b)}.get<Collider>();
-                    collider.isSensor = true;
-                }
-                if (e_s && bagel::Entity{(*e_s)}.has<Attack>() && bagel::Entity{(*e_b)}.has<PlayerState>()) {
-                    auto& attack = bagel::Entity{(*e_s)}.get<Attack>();
-                    auto& playerState = bagel::Entity{(*e_b)}.get<PlayerState>();
-                    auto& character = bagel::Entity{(*e_b)}.get<Character>();
-                    if (attack.attacker != playerState.playerNumber)
-                    {
-                        printf("attack ");
-                        playerState.state = State::TORSO_HIT;
-                        playerState.currFrame = 0;
-                        playerState.busyFrames = character.sprite[playerState.state].frameCount;
-                        playerState.freezeFrame = PlayerState::NONE;
-                        playerState.isCrouching = false;
-                        playerState.busy = true;
-                    }
-                }
-            }
+            bagel::Entity eBody = bagel::Entity{(*e_s)};
+            bagel::Entity eSensor = bagel::Entity{(*e_b)};
+
+            if (eBody.test(maskPlayer) && eSensor.test(maskPlayer))
+                eBody.get<Collider>().isSensor = true;
+
+            if (eSensor.test(maskAttack) && eBody.test(maskPlayer)
+                && eSensor.get<Attack>().attacker != eBody.get<PlayerState>().playerNumber)
+                    CombatSystem(eSensor, eBody);
         }
 
         // Handle end events
         for (int i = 0; i < se.endCount; ++i) {
             if (!b2Shape_IsValid(se.endEvents[i].visitorShapeId)) continue;
             b2BodyId b = b2Shape_GetBody(se.endEvents[i].visitorShapeId);
-            auto* e_b = static_cast<bagel::ent_type*>(b2Body_GetUserData(b));
+            const auto* e_b = static_cast<bagel::ent_type*>(b2Body_GetUserData(b));
             if (!b2Shape_IsValid(se.endEvents[i].sensorShapeId)) continue;
             b2BodyId s = b2Shape_GetBody(se.endEvents[i].sensorShapeId);
-            auto* e_s = static_cast<bagel::ent_type*>(b2Body_GetUserData(s));
+            const auto* e_s = static_cast<bagel::ent_type*>(b2Body_GetUserData(s));
+            if (!e_b || !e_s) continue;
 
-            if (e_b && e_s && bagel::Entity{(*e_s)}.has<PlayerState>()) {
-                auto& collider = bagel::Entity{(*e_b)}.get<Collider>();
-                collider.isSensor = false;
-            }
+            bagel::Entity eBody = bagel::Entity{(*e_s)};
+            bagel::Entity eSensor = bagel::Entity{(*e_b)};
 
+            if (eBody.test(maskPlayer) && eSensor.test(maskPlayer))
+                eBody.get<Collider>().isSensor = false;
         }
     }
 
@@ -463,6 +516,7 @@ namespace mortal_kombat
         {
             if (bagel::Entity entity{e}; entity.test(mask))
             {
+
             }
         }
     }
@@ -492,7 +546,75 @@ namespace mortal_kombat
         }
     }
 
-    void MK::AttackSystem() {
+    void MK::CombatSystem(bagel::Entity &eAttack, bagel::Entity &ePlayer) {
+        auto& attack = eAttack.get<Attack>();
+        auto& playerState = ePlayer.get<PlayerState>();
+        auto& health = ePlayer.get<Health>();
+        auto& character = ePlayer.get<Character>();
+
+        if (playerState.state == State::BLOCK || playerState.state == State::CROUCH_BLOCK)
+        {
+            health.health -= 1;
+            ++(playerState.currFrame);
+            return;
+        }
+
+        switch (attack.type)
+        {
+            case State::LOW_KICK:
+            case State::HIGH_KICK:
+                health.health -= 8;
+                playerState.reset();
+                playerState.state = playerState.isCrouching ? State::CROUCH_HIT : State::KICKBACK_TORSO_HIT;
+                playerState.busyFrames = character.sprite[playerState.state].frameCount;
+                playerState.busy = true;
+                break;
+            case State::LOW_SWEEP_KICK:
+                health.health -= 12;
+                playerState.reset();
+                playerState.state = State::FALL_INPLACE;
+                playerState.busyFrames = character.sprite[playerState.state].frameCount;
+                playerState.freezeFrame = playerState.busyFrames - 1;
+                playerState.freezeFrameDuration = 2;
+                playerState.isLaying = true;
+                playerState.busy = true;
+                break;
+            case State::HIGH_SWEEP_KICK:
+                health.health -= 14;
+                playerState.reset();
+                playerState.state = State::FALL;
+                playerState.busyFrames = character.sprite[playerState.state].frameCount;
+                playerState.freezeFrame = playerState.busyFrames - 1;
+                playerState.freezeFrameDuration = 2;
+                playerState.isLaying = true;
+                playerState.busy = true;
+                break;
+            case State::UPPERCUT:
+                health.health -= 14;
+                playerState.reset();
+                playerState.state = State::UPPERCUT_HIT;
+                playerState.busyFrames = character.sprite[playerState.state].frameCount;
+                playerState.freezeFrame = playerState.busyFrames - 1;
+                playerState.freezeFrameDuration = 2;
+                playerState.isLaying = true;
+                playerState.busy = true;
+                break;
+            default:
+                health.health -= 5;
+                playerState.reset();
+                playerState.state = playerState.isCrouching ? State::CROUCH_HIT : State::TORSO_HIT ;
+                playerState.busyFrames = character.sprite[playerState.state].frameCount;
+                playerState.busy = true;
+                break;
+        }
+    }
+
+    void MK::AttackSystem(bagel::Entity &eAttack)
+    {
+
+    }
+
+    void MK::AttackDecaySystem() {
         static const bagel::Mask mask = bagel::MaskBuilder()
             .set<Attack>()
             .set<Collider>()
@@ -505,9 +627,9 @@ namespace mortal_kombat
             {
                 auto& collider = entity.get<Collider>();
                 auto& time = entity.get<Time>();
-                if (++(time.time) >= 10)
+                if (++(time.time) > Attack::ATTACK_LIFE_TIME)
                 {
-                    auto* e_s = static_cast<bagel::ent_type*>(b2Body_GetUserData(collider.body));
+                    const auto* e_s = static_cast<bagel::ent_type*>(b2Body_GetUserData(collider.body));
                     b2DestroyBody(collider.body);
                     delete e_s;
                     bagel::World::destroyEntity(e);
