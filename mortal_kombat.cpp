@@ -129,7 +129,7 @@ namespace mortal_kombat
 
                         break;
                     case State::GETUP:
-                        movement.vy = position.y - PLAYER_BASE_Y;
+                        movement.vy = PLAYER_BASE_Y - position.y ;
                         break;
                     default:
                         movement.reset();
@@ -229,7 +229,7 @@ namespace mortal_kombat
                     State state;
                     int freezeFrame = NONE;
                     int offSetFrame = 0;
-                    int freezeFrameDuration = 1;
+                    int freezeFrameDuration = 0;
                     bool busy = true;
                     bool crouching = false;
                     bool attack = false;
@@ -355,7 +355,8 @@ namespace mortal_kombat
                         playerState.state = state;
                         playerState.currFrame = (playerState.isCrouching && state == State::CROUCH) ? 2 : 0;
                         playerState.busyFrames = character.sprite[playerState.state].frameCount;
-                        playerState.freezeFrame = freezeFrame;
+                        playerState.freezeFrame = freezeFrame;d
+                        playerState.freezeFrameDuration = freezeFrameDuration;
                         playerState.isCrouching = crouching;
                         playerState.isAttacking = attack;
                         playerState.busy = busy;

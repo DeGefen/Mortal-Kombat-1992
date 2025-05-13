@@ -176,7 +176,7 @@ namespace mortal_kombat
         /// @brief Character component holds the character information of the player.
         struct Character {
             char name[10] = {};
-            CharacterData sprite;
+            SpriteData sprite;
             Input special_moves_input[3] = {};
         };
 

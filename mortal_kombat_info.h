@@ -71,32 +71,32 @@ namespace mortal_kombat
         SUBZERO_SLIDE, SCORPION_CHAIN
     };
 
-    class CharacterData {
+    class SpriteData {
     public:
-        static constexpr int SPRITE_SIZE = 46;
+        static constexpr int CHARACTER_SPRITE_SIZE = 46;
 
-        struct CharacterSpriteInfo {
+        struct SpriteInfo {
             int frameCount = 0;
             int x = 0, y = 0;
             int w = 230, h = 220;
         };
 
-        explicit constexpr CharacterData(const std::array<CharacterSpriteInfo, SPRITE_SIZE>& spriteArray)
+        explicit constexpr SpriteData(const std::array<SpriteInfo, CHARACTER_SPRITE_SIZE>& spriteArray)
                     : sprite(spriteArray) {}
 
-        constexpr const CharacterSpriteInfo& operator[](State s) const {
+        constexpr const SpriteInfo& operator[](State s) const {
             return sprite[static_cast<int>(s)];
         }
 
-        constexpr CharacterSpriteInfo& operator[](State s) {
+        constexpr SpriteInfo& operator[](State s) {
             return sprite[static_cast<int>(s)];
         }
 
     private:
-        std::array<CharacterSpriteInfo, SPRITE_SIZE> sprite;
+        std::array<SpriteInfo, CHARACTER_SPRITE_SIZE> sprite;
     };
 
-    static constexpr std::array<CharacterData::CharacterSpriteInfo, CharacterData::SPRITE_SIZE> SUBZERO_SPRITE_ARRAY{{
+    static constexpr std::array<SpriteData::SpriteInfo, SpriteData::CHARACTER_SPRITE_SIZE> SUBZERO_SPRITE_ARRAY{{
                 {12, 32,   58, 230, 220}, // Stance
                 {9,  3074, 58, 230, 220},  // Walk Forwards
                 {9,  3074, 58, 230, 220},  // Walk Backwards
@@ -145,7 +145,7 @@ namespace mortal_kombat
                 {4,  32,   7688, 230, 220},  // Win
     }};
 
-    static constexpr std::array<CharacterData::CharacterSpriteInfo, CharacterData::SPRITE_SIZE> LIU_KANG_SPRITE_ARRAY{{
+    static constexpr std::array<SpriteData::SpriteInfo, SpriteData::CHARACTER_SPRITE_SIZE> LIU_KANG_SPRITE_ARRAY{{
                 {8, 32,   58, 230, 220}, // Stance
                 {9,  2138, 58, 230, 220},  // Walk Forwards
                 {9,  2138, 58, 230, 220},  // Walk Backwards
@@ -194,9 +194,9 @@ namespace mortal_kombat
                 {14,  32,   8210, 230, 220},  // Win
     }};
 
-    static constexpr CharacterData SUBZERO_SPRITE(SUBZERO_SPRITE_ARRAY);
+    static constexpr SpriteData SUBZERO_SPRITE(SUBZERO_SPRITE_ARRAY);
 
-    static constexpr CharacterData LIU_KANG_SPRITE(LIU_KANG_SPRITE_ARRAY);
+    static constexpr SpriteData LIU_KANG_SPRITE(LIU_KANG_SPRITE_ARRAY);
 };
 
 
