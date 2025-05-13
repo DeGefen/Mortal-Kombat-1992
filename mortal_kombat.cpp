@@ -355,7 +355,7 @@ namespace mortal_kombat
                         playerState.state = state;
                         playerState.currFrame = (playerState.isCrouching && state == State::CROUCH) ? 2 : 0;
                         playerState.busyFrames = character.sprite[playerState.state].frameCount;
-                        playerState.freezeFrame = freezeFrame;d
+                        playerState.freezeFrame = freezeFrame;
                         playerState.freezeFrameDuration = freezeFrameDuration;
                         playerState.isCrouching = crouching;
                         playerState.isAttacking = attack;
