@@ -641,39 +641,32 @@ namespace mortal_kombat
 
         }
 
-        void MK::createBackground(std::string backgroundPath) {
-
-            // Load the image as a surface
-            SDL_Surface* surface = IMG_Load(backgroundPath.c_str());
-            if (!surface) {
-                SDL_Log("Failed to load image: %s, SDL_Error: %s", backgroundPath.c_str(), SDL_GetError());
-                return ;
-            }
-
-            const SDL_PixelFormatDetails *fmt = SDL_GetPixelFormatDetails(surface->format);
-
-            SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
-                                                             COLOR_IGNORE_RED,
-                                                             COLOR_IGNORE_GREEN,
-                                                             COLOR_IGNORE_BLUE));
-
-            // Create a texture from the surface
-            SDL_Texture* texture = SDL_CreateTextureFromSurface(ren, surface);
-
-            SDL_DestroySurface(surface); // Free the surface after creating the texture
-
-            if (!texture) {
-                SDL_Log("Failed to create texture: %s, SDL_Error: %s", backgroundPath.c_str(), SDL_GetError());
-                return ;
-            }
-
-            SDL_RenderPresent(ren);
-
-            SDL_Delay(5000);
-
-            bagel::Entity entity = bagel::Entity::create();
-            entity.addAll(Position{0, 0},
-                          Movement{0, 0},
-                          Texture{texture});
+    void MK::createBackground(std::string backgroundPath) {
+        // Load the image as a surface
+        SDL_Surface* surface = IMG_Load(backgroundPath.c_str());
+        if (!surface) {
+            SDL_Log("Failed to load image: %s, SDL_Error: %s", backgroundPath.c_str(), SDL_GetError());
+            return;
         }
+
+        // Create a texture from the surface
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(ren, surface);
+        SDL_DestroySurface(surface); // Free the surface after creating the texture
+
+        if (!texture) {
+            SDL_Log("Failed to create texture: %s, SDL_Error: %s", backgroundPath.c_str(), SDL_GetError());
+            return;
+        }
+
+        // Create entity with full window size texture
+        bagel::Entity entity = bagel::Entity::create();
+        entity.addAll(
+            Position{0, 0},
+            Texture{
+                texture,
+                { 280, 320, 320, 80 }, // Only show the red/black part
+                { 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT } // Stretch or place as needed
+            }
+        );
+    }
 }
