@@ -29,18 +29,20 @@ namespace mortal_kombat
         static constexpr float SCALE_CHARACTER = 0.9f;
         static constexpr int WINDOW_SCALE = 100;
 
+        static constexpr int PLAYER_1_BASE_X = WINDOW_WIDTH / 4 - (CHAR_SQUARE_WIDTH / 2);
+        static constexpr int PLAYER_2_BASE_X = (WINDOW_WIDTH / 4) * 3 - (CHAR_SQUARE_WIDTH / 2);
+        static constexpr int PLAYER_BASE_Y = WINDOW_HEIGHT / 2;
+
         static constexpr int FPS = 60;
         static constexpr float	BOX2D_STEP = 1.f/FPS;
 
         static constexpr float CHARACTER_WIDTH = 50;
         static constexpr float CHARACTER_HEIGHT = 135;
 
-        static constexpr float WALK_SPEED_BACKWARDS = 4;
-        static constexpr float WALK_SPEED_FORWARDS = 5;
+        static constexpr int NONE = -1;
 
         SDL_Renderer* ren;
         SDL_Window* win;
-
         b2WorldId boxWorld;
 
         void prepareBoxWorld();
@@ -80,15 +82,30 @@ namespace mortal_kombat
             bool direction = RIGHT;
             bool isJumping = false; // Whether the player is jumping
             bool isCrouching = false; // Whether the player is crouching
+            bool isAttacking = false; // Whether the player is attacking
+            bool isLaying = false; // Whether the player is laying down
             bool busy = false; // Whether the player is busy
             int playerNumber = 1; // Player number (1 or 2)
             int busyFrames = 0; // Total frames spent in the current state
             int currFrame = 0; //  Frames spent in the current state
             int freezeFrame = NONE; // Frame to freeze the player
+            int freezeFrameDuration = 0; // Duration of the freeze frame
 
-            static constexpr int NONE = -1;
             static constexpr bool LEFT = true;
             static constexpr bool RIGHT = false;
+
+            void reset()
+            {
+                state = State::STANCE;
+                isJumping = false;
+                isCrouching = false;
+                isAttacking = false;
+                isLaying = false;
+                busy = false;
+                busyFrames = 0;
+                currFrame = 0;
+                freezeFrame = NONE;
+            }
         };
 
         /// @brief Inputs component holds the input, and input history for the player.
@@ -142,6 +159,8 @@ namespace mortal_kombat
             int hitbox_type = 0;
             float hitbox_size = 0.0f;
             float hitbox_duration = 0.0f;
+
+            static constexpr int ATTACK_LIFE_TIME = 1;
         };
 
         /// @brief SpecialAttack component holds the special move type and inputs for the attack.
@@ -157,14 +176,14 @@ namespace mortal_kombat
         /// @brief Character component holds the character information of the player.
         struct Character {
             char name[10] = {};
-            CharacterData sprite;
+            SpriteData sprite;
             Input special_moves_input[3] = {};
         };
 
         /// @brief Health component holds the maximum and current health of the player.
         struct Health {
             float max_health = 100.0f;
-            float current_health = 100.0f;
+            float health = 100.0f;
         };
 
         /// @brief Time component holds the time remaining in the match.
@@ -198,6 +217,11 @@ namespace mortal_kombat
         void RenderSystem();
 
         /// @brief Returns the sprite rectangle for a given action and frame.
+        /// @param character Character data for the player.
+        /// @param action Action state of the character.
+        /// @param frame Frame number of the action.
+        /// @param shadow Whether to return shadow.
+        /// @return SDL_FRect representing the sprite rectangle.
         static SDL_FRect getCharacterFrame(const Character& character, State action,
                                             int frame, bool shadow = false);
 
@@ -219,8 +243,16 @@ namespace mortal_kombat
         /// @brief Processes player inputs and updates input history.
         void InputSystem();
 
-        /// @brief Handles attack logic, such as applying damage and managing hitboxes.
-        void AttackSystem();
+        /// @brief Handles attack creation.
+        void AttackSystem(bagel::Entity &eAttack);
+
+        /// @brief Handles combat logic, such has damage application, and player hit state.
+        /// @param eAttack Entity representing the attack.
+        /// @param ePlayer Entity representing the attacked player.
+        static void CombatSystem(bagel::Entity &eAttack, bagel::Entity &ePlayer);
+
+        /// @brief Handles attack's entity destruction and decay logic.
+        void AttackDecaySystem();
 
         /// @brief Manages special attack logic, including damage and hitbox effects.
         void SpecialAttackSystem();
@@ -264,7 +296,14 @@ namespace mortal_kombat
                 "Sub-Zero",
                 SUBZERO_SPRITE,
             {}};
+
+            constexpr static Character LIU_KANG = {
+                "Liu Kang",
+                LIU_KANG_SPRITE,
+            {}};
         };
+
+
     };
 }
 
