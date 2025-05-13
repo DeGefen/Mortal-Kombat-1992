@@ -5,9 +5,6 @@
 #include "box2d/box2d.h"
 #include "bagel.h"
 #include "lib/box2d/src/body.h"
-#include <string>
-
-
 #include "SDL3_image/SDL_image.h"
 
 namespace mortal_kombat
@@ -29,7 +26,8 @@ namespace mortal_kombat
         static constexpr int CHAR_SQUARE_HEIGHT = 220;
         static constexpr int NEXT_FRAME_OFFSET = 4;
         static constexpr int SHADOW_OFFSET = 8;
-        static constexpr float SCALE_CHARACTER = 0.8f;
+        static constexpr float SCALE_CHARACTER = 0.9f;
+        static constexpr int WINDOW_SCALE = 100;
 
         static constexpr int FPS = 60;
         static constexpr float	BOX2D_STEP = 1.f/FPS;
@@ -79,7 +77,6 @@ namespace mortal_kombat
         /// @brief Player_state component holds the state for the player.
         struct PlayerState {
             State state = State::STANCE;
-            State prevState = State::STANCE;
             bool direction = RIGHT;
             bool isJumping = false; // Whether the player is jumping
             bool isCrouching = false; // Whether the player is crouching
@@ -138,7 +135,8 @@ namespace mortal_kombat
 
         /// @brief Attack component holds the attack type, damage, hitbox, and hitbox type.
         struct Attack {
-            AttackType type;
+            State type;
+            int attacker;
             float damage = 0.0f;
             float hitbox = 0.0f;
             int hitbox_type = 0;
@@ -183,11 +181,18 @@ namespace mortal_kombat
 
         /* =============== Systems =============== */
 
-        /// @brief Processes entities with the specified mask and applies a function to each entity.
-        static void processEntities(bagel::Mask mask, const std::function<void(bagel::Entity&)>& process);
-
         /// @brief Updates the position of entities based on their movement components.
         void MovementSystem();
+
+        static b2Vec2 getPosition(const Position& position)
+        {
+            return {position.x / WINDOW_SCALE, position.y / WINDOW_SCALE};
+        }
+
+        static b2Vec2 getPosition(const float x, const float y)
+        {
+            return {x / WINDOW_SCALE, y / WINDOW_SCALE};
+        }
 
         /// @brief Renders entities with position and texture components to the screen.
         void RenderSystem();
@@ -226,118 +231,32 @@ namespace mortal_kombat
         /// @brief Creates a player's character (like Scorpion, Sub-Zero, etc.)
         /// @param x,y Position of the entity in the game world.
         /// @param character Character data for the player.
-        void createPlayer(float x, float y, Character character, int playerNumber = 1) {
-            bagel::Entity entity = bagel::Entity::create();
-
-            // Construct the texture path
-            std::string texturePath = "res/" + std::string(character.name) + ".png";
-
-            // Load the image as a surface
-            SDL_Surface* surface = IMG_Load(texturePath.c_str());
-            if (!surface) {
-                SDL_Log("Failed to load image: %s, SDL_Error: %s", texturePath.c_str(), SDL_GetError());
-                return ;
-            }
-
-            const SDL_PixelFormatDetails *fmt = SDL_GetPixelFormatDetails(surface->format);
-
-            SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
-                                                          COLOR_IGNORE_RED,
-                                                          COLOR_IGNORE_GREEN,
-                                                          COLOR_IGNORE_BLUE));
-
-            // Create a texture from the surface
-            SDL_Texture* texture = SDL_CreateTextureFromSurface(ren, surface);
-            SDL_DestroySurface(surface); // Free the surface after creating the texture
-            if (!texture) {
-                SDL_Log("Failed to create texture: %s, SDL_Error: %s", texturePath.c_str(), SDL_GetError());
-                return ;
-            }
-
-            b2BodyDef bodyDef = b2DefaultBodyDef();
-            bodyDef.type = b2_dynamicBody;
-            bodyDef.position= {(x + (CHARACTER_WIDTH/2)) *SCALE_CHARACTER, (y - (CHARACTER_HEIGHT/2)) * SCALE_CHARACTER};
-
-            b2ShapeDef shapeDef = b2DefaultShapeDef();
-            shapeDef.enableSensorEvents = true;
-            shapeDef.isSensor = true;
-
-            b2Polygon boxShape = b2MakeBox(CHARACTER_WIDTH * SCALE_CHARACTER / 2.0f,
-                                           CHARACTER_HEIGHT * SCALE_CHARACTER / 2.0f);
-
-            b2BodyId body = b2CreateBody(boxWorld, &bodyDef);
-            b2ShapeId shape = b2CreatePolygonShape(body, &shapeDef, &boxShape);
-
-            // Add components to the entity
-            PlayerState playerState;
-            playerState.playerNumber = playerNumber;
-            playerState.direction = (playerNumber == 1) ? PlayerState::RIGHT : PlayerState::LEFT;
-
-            entity.addAll(Position{x, y},
-                          Movement{0, 0},
-                          Collider{body, shape},
-                          Texture{texture},
-                          playerState,
-                          Inputs{},
-                          character,
-                          Health{100, 100});
-            b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
-
-        }
+        /// @param playerNumber Player number (1 or 2).
+        void createPlayer(float x, float y, Character character, int playerNumber);
 
         /// @brief Creates an Attack entity (like a punch or kick).
         /// @param x,y Position of the entity in the game world.
         /// @param type Type of the attack.
-        static inline void createAttack(float x, float y, AttackType type) {
-            bagel::Entity entity = bagel::Entity::create();
-
-            entity.addAll(Position{x, y},
-                          Collider{},
-                          Attack{type, 0.0f, 0.0f, 0, 0.0f, 0.0f});
-        }
+        /// @param playerNumber Player number (1 or 2).
+        void createAttack(float x, float y, State type, int playerNumber);
 
         /// @brief Creates a special attack entity.
         /// @param x,y Position of the entity in the game world.
         /// @param type Type of the special attack.
-        static inline void createSpecialAttack(float x, float y, SpecialAttackType type) {
-            bagel::Entity entity = bagel::Entity::create();
-
-            entity.addAll(Position{x, y},
-                          Collider{},
-                          SpecialAttack{type, 0.0f, 0.0f, 0, 0.0f, 0.0f});
-        }
+        static inline void createSpecialAttack(float x, float y, SpecialAttackType type);
 
         /// @brief Creates a static platform/boundary.
         /// @param x,y Position of the boundary in the game world.
         /// @param width, height Dimensions of the boundary.
-        static inline void createBoundary(float x, float y, float width, float height) {
-            bagel::Entity entity = bagel::Entity::create();
-
-            entity.addAll(Position{x, y},
-                          Collider{});
-        }
+        static inline void createBoundary(float x, float y, float width, float height);
 
         /// @brief Creates a game info entity.
         /// @param initialTime Initial time for the game.
-        static inline void createGameInfo(float initialTime) {
-            bagel::Entity entity = bagel::Entity::create();
-
-            entity.addAll(Time{initialTime},
-                          Score{0, 0, 0},
-                          Position{0, 0},
-                          Texture{nullptr, SDL_FRect{0, 0, 100, 50}});
-
-        }
+        static inline void createGameInfo(float initialTime);
 
         /// @brief Creates a background entity.
         /// @param texture SDL texture for the background.
-        static inline void createBackground(SDL_Texture* texture) {
-            bagel::Entity entity = bagel::Entity::create();
-
-            entity.addAll(Position{0, 0},
-                          Texture{texture, SDL_FRect{0, 0, WINDOW_WIDTH, WINDOW_HEIGHT}});
-
-        }
+        void createBackground(SDL_Texture* texture);
 
         struct Characters
         {
