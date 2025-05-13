@@ -5,6 +5,11 @@
 #include <SDL3_image/SDL_image.h>
 #include <box2d/box2d.h>
 
+// namespace mortal_kombat {
+//     SDL_Window* MK::win = nullptr;
+//     SDL_Renderer* MK::ren = nullptr;
+// }
+
 namespace mortal_kombat
 {
     MK::MK()
@@ -54,6 +59,9 @@ namespace mortal_kombat
 
     void MK::run()
     {
+
+        createBackground("res/Background.png");
+
         createPlayer(PLAYER_1_BASE_X, PLAYER_BASE_Y, (Characters::SUBZERO), 1);
         createPlayer(PLAYER_2_BASE_X, PLAYER_BASE_Y, (Characters::LIU_KANG), 2);
 
@@ -755,11 +763,32 @@ namespace mortal_kombat
 
         }
 
-        void MK::createBackground(SDL_Texture* texture) {
-            bagel::Entity entity = bagel::Entity::create();
-
-            entity.addAll(Position{0, 0},
-                          Texture{texture, SDL_FRect{0, 0, WINDOW_WIDTH, WINDOW_HEIGHT}});
-
+    void MK::createBackground(std::string backgroundPath) {
+        // Load the image as a surface
+        SDL_Surface* surface = IMG_Load(backgroundPath.c_str());
+        if (!surface) {
+            SDL_Log("Failed to load image: %s, SDL_Error: %s", backgroundPath.c_str(), SDL_GetError());
+            return;
         }
+
+        // Create a texture from the surface
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(ren, surface);
+        SDL_DestroySurface(surface); // Free the surface after creating the texture
+
+        if (!texture) {
+            SDL_Log("Failed to create texture: %s, SDL_Error: %s", backgroundPath.c_str(), SDL_GetError());
+            return;
+        }
+
+        // Create entity with full window size texture
+        bagel::Entity entity = bagel::Entity::create();
+        entity.addAll(
+            Position{0, 0},
+            Texture{
+                texture,
+                { 280, 320, 320, 80 }, // Only show the red/black part
+                { 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT } // Stretch or place as needed
+            }
+        );
+    }
 }
