@@ -1,6 +1,8 @@
 #pragma once
 #include "mortal_kombat_info.h"
 #include <functional>
+#include <string>
+
 #include "SDL3/SDL.h"
 #include "box2d/box2d.h"
 #include "bagel.h"
@@ -255,8 +257,8 @@ namespace mortal_kombat
         static inline void createGameInfo(float initialTime);
 
         /// @brief Creates a background entity.
-        /// @param texture SDL texture for the background.
-        void createBackground(SDL_Texture* texture);
+        /// @param backgroundName SDL texture for the background.
+        inline void createBackground(std::string backgroundName);
 
         struct Characters
         {

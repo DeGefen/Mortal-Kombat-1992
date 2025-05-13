@@ -5,6 +5,11 @@
 #include <SDL3_image/SDL_image.h>
 #include <box2d/box2d.h>
 
+// namespace mortal_kombat {
+//     SDL_Window* MK::win = nullptr;
+//     SDL_Renderer* MK::ren = nullptr;
+// }
+
 namespace mortal_kombat
 {
     MK::MK()
@@ -53,6 +58,9 @@ namespace mortal_kombat
     void MK::run()
     {
         prepareBoxWorld();
+
+        createBackground("res/Background.png");
+
         createPlayer(200, 200, (Characters::SUBZERO), 1);
         createPlayer(300, 200, (Characters::SUBZERO), 2);
 
@@ -633,11 +641,39 @@ namespace mortal_kombat
 
         }
 
-        void MK::createBackground(SDL_Texture* texture) {
+        void MK::createBackground(std::string backgroundPath) {
+
+            // Load the image as a surface
+            SDL_Surface* surface = IMG_Load(backgroundPath.c_str());
+            if (!surface) {
+                SDL_Log("Failed to load image: %s, SDL_Error: %s", backgroundPath.c_str(), SDL_GetError());
+                return ;
+            }
+
+            const SDL_PixelFormatDetails *fmt = SDL_GetPixelFormatDetails(surface->format);
+
+            SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
+                                                             COLOR_IGNORE_RED,
+                                                             COLOR_IGNORE_GREEN,
+                                                             COLOR_IGNORE_BLUE));
+
+            // Create a texture from the surface
+            SDL_Texture* texture = SDL_CreateTextureFromSurface(ren, surface);
+
+            SDL_DestroySurface(surface); // Free the surface after creating the texture
+
+            if (!texture) {
+                SDL_Log("Failed to create texture: %s, SDL_Error: %s", backgroundPath.c_str(), SDL_GetError());
+                return ;
+            }
+
+            SDL_RenderPresent(ren);
+
+            SDL_Delay(5000);
+
             bagel::Entity entity = bagel::Entity::create();
-
             entity.addAll(Position{0, 0},
-                          Texture{texture, SDL_FRect{0, 0, WINDOW_WIDTH, WINDOW_HEIGHT}});
-
+                          Movement{0, 0},
+                          Texture{texture});
         }
 }
