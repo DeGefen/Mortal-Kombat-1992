@@ -28,12 +28,12 @@ namespace mortal_kombat
         static constexpr int CHAR_SQUARE_HEIGHT = 220;
         static constexpr int NEXT_FRAME_OFFSET = 4;
         static constexpr int SHADOW_OFFSET = 8;
-        static constexpr float SCALE_CHARACTER = 0.9f;
+        static constexpr float SCALE_CHARACTER = 1.5f;
         static constexpr int WINDOW_SCALE = 100;
 
-        static constexpr int PLAYER_1_BASE_X = WINDOW_WIDTH / 4 - (CHAR_SQUARE_WIDTH / 2);
+        static constexpr int PLAYER_1_BASE_X = WINDOW_WIDTH / 4 - (CHAR_SQUARE_WIDTH / 2) - 100;
         static constexpr int PLAYER_2_BASE_X = (WINDOW_WIDTH / 4) * 3 - (CHAR_SQUARE_WIDTH / 2);
-        static constexpr int PLAYER_BASE_Y = WINDOW_HEIGHT / 1.6f;
+        static constexpr int PLAYER_BASE_Y = WINDOW_HEIGHT / 2.0f - 20;
 
         // Background constants
         // -------------------------------------------------------
@@ -43,12 +43,12 @@ namespace mortal_kombat
 
         static constexpr int fenceX = 290;
         static constexpr int fenceY = 300;
-        static constexpr int fenceW = 310;
+        static constexpr int fenceW = 300;
         static constexpr int fenceH = 400;
 
         static constexpr int templeX = 290;
         static constexpr int templeY = 0;
-        static constexpr int templeW = 310;
+        static constexpr int templeW = 300;
         static constexpr int templeH = 245;
         // --------------------------------------------------------
 

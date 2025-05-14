@@ -79,11 +79,11 @@ namespace mortal_kombat
 
     void MK::MovementSystem()
     {
-        static constexpr float WALK_SPEED_BACKWARDS = 4.0f;
-        static constexpr float WALK_SPEED_FORWARDS = 5.0f;
-        static constexpr float KICKBACK_SPEED = 4.0f;
-        static constexpr float UPPERCUT_SPEED = 2.0f;
-        static constexpr float UPPERCUT_VERTICAL_SPEED = 2.0f;
+        static constexpr float WALK_SPEED_BACKWARDS = 12.0f * SCALE_CHARACTER;
+        static constexpr float WALK_SPEED_FORWARDS = 15.0f * SCALE_CHARACTER;
+        static constexpr float KICKBACK_SPEED = 4.0f * SCALE_CHARACTER;
+        static constexpr float UPPERCUT_SPEED = 2.0f * SCALE_CHARACTER;
+        static constexpr float UPPERCUT_VERTICAL_SPEED = 2.0f * SCALE_CHARACTER;
 
         static const bagel::Mask mask = bagel::MaskBuilder()
             .set<Position>()
