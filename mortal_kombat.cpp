@@ -62,14 +62,9 @@ namespace mortal_kombat
         {
             frameStart = SDL_GetTicks();
 
-            if (frame_count % INPUT_FRAME_DELAY == 0)
-            {
-                InputSystem();
-            }
-            if (++frame_count % ACTION_FRAME_DELAY == 0)
-            {
-                PlayerSystem();
-            }
+            if (frame_count % INPUT_FRAME_DELAY == 0) InputSystem();
+            if (++frame_count % ACTION_FRAME_DELAY == 0) PlayerSystem();
+            ClockSystem();
             CollisionSystem();
             MovementSystem();
             RenderSystem();
@@ -458,10 +453,10 @@ namespace mortal_kombat
                     {
                         auto& [x, y] = entity.get<Position>();
                         if (playerState.isSpecicalAttacking)
-                            createSpecialAttack( x, y, SpecialAttacks::FIREBALL,
+                            createSpecialAttack(x, y, SpecialAttacks::FIREBALL,
                                       playerState.playerNumber, playerState.direction, character);
                         else
-                            createAttack( x, y, playerState.state,
+                            createAttack(x, y, playerState.state,
                                       playerState.playerNumber, playerState.direction);
                     }
                 }
@@ -534,7 +529,6 @@ namespace mortal_kombat
         static const bagel::Mask maskPlayer = bagel::MaskBuilder()
             .set<PlayerState>()
             .build();
-
 
         b2World_Step(boxWorld, BOX2D_STEP, 4);
 
@@ -613,6 +607,7 @@ namespace mortal_kombat
         {
             if (bagel::Entity entity{e}; entity.test(mask))
             {
+                --entity.get<Time>().time;
             }
         }
     }
@@ -701,8 +696,19 @@ namespace mortal_kombat
                 playerState.state = crouching ? State::CROUCH_HIT : State::TORSO_HIT;
                 playerState.busyFrames = character.sprite[playerState.state].frameCount;
                 playerState.freezeFrame = playerState.busyFrames - 1;
-                playerState.freezeFrameDuration = 2;
                 playerState.busy = true;
+                break;
+            case State::SPECIAL_1:
+                health.health -= 10;
+                playerState.reset();
+                playerState.state = crouching ? State::CROUCH_HIT : State::TORSO_HIT;
+                playerState.busyFrames = character.sprite[playerState.state].frameCount;
+                playerState.freezeFrame = playerState.busyFrames - 1;
+                playerState.busy = true;
+                if (eAttack.has<SpecialAttack>())
+                {
+                    eAttack.get<SpecialAttack>().explode = true;
+                }
                 break;
             default:
         }
@@ -716,47 +722,47 @@ namespace mortal_kombat
     void MK::AttackDecaySystem() {
         static const bagel::Mask mask = bagel::MaskBuilder()
             .set<Collider>()
+            .set<Attack>()
             .set<Time>()
             .build();
 
         for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
             if (bagel::Entity entity{e}; entity.test(mask)) {
-                if (entity.has<Attack>()) {
-                    auto& collider = entity.get<Collider>();
+                auto& collider = entity.get<Collider>();
+                auto& time = entity.get<Time>();
 
-                    // Only delete the user data if the body is valid
+                if (time.time <= 0) {
                     if (b2Body_IsValid(collider.body)) {
                         const auto* e_p = static_cast<bagel::ent_type*>(b2Body_GetUserData(collider.body));
                         b2DestroyBody(collider.body);
                         delete e_p;
                     }
 
-                    // Mark the body as invalid after deletion
                     collider.body = b2_nullBodyId;
-
                     bagel::World::destroyEntity(e);
-                }
-                else if (entity.has<SpecialAttack>()) {
-                    auto& collider = entity.get<Collider>();
-                    auto& time = entity.get<Time>();
-
-                    if (++(time.time) > SpecialAttack::SPECIAL_ATTACK_LIFE_TIME) {
-                        if (b2Body_IsValid(collider.body)) {
-                            const auto* e_p = static_cast<bagel::ent_type*>(b2Body_GetUserData(collider.body));
-                            b2DestroyBody(collider.body);
-                            delete e_p;
-                        }
-
-                        collider.body = b2_nullBodyId;
-                        bagel::World::destroyEntity(e);
-                    }
                 }
             }
         }
     }
 
     int MK::SpecialAttackSystem(const bagel::Entity& ePlayer) {
-        return 0;
+        static const bagel::Mask mask = bagel::MaskBuilder()
+            .set<SpecialAttack>()
+            .build();
+
+        for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
+            if (bagel::Entity entity{e}; entity.test(mask))
+            {
+                if (entity.get<SpecialAttack>().explode)
+                {
+                    entity.get<Movement>().reset();
+                    entity.get<SpecialAttack>().type = SpecialAttacks::EXPLOSION;
+                    entity.get<SpecialAttack>().frame = 0;
+                    entity.get<SpecialAttack>().totalFrames = entity.get<Character>().specialAttackSprite[SpecialAttacks::EXPLOSION].frameCount - 1;
+                    entity.get<SpecialAttack>().explode = false;
+                }
+            }
+        }
     }
 
     void MK::createPlayer(float x, float y, Character character, int playerNumber) {
@@ -860,7 +866,8 @@ namespace mortal_kombat
             bagel::Entity entity = bagel::Entity::create();
             entity.addAll(Position{x, y},
                           Collider{body, shape},
-                          Attack{type, playerNumber});
+                          Attack{type, playerNumber},
+                          Time{Attack::ATTACK_LIFE_TIME});
 
             b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
         }
@@ -888,13 +895,14 @@ namespace mortal_kombat
 
             // Add components to the entity
             bagel::Entity entity = bagel::Entity::create();
-            entity.addAll(Position{x + (direction == PlayerState::LEFT) ? 100.0f: -100, y + 120},
+            entity.addAll(Position{x, y},
                        Movement{(direction == PlayerState::LEFT) ? -15.0f : 15.0f, 0},
                        Collider{body, shape},
                        Texture{texture},
-                       SpecialAttack{type, playerNumber, direction},
+                       Attack{State::SPECIAL_1, playerNumber},
+                       SpecialAttack{type, direction},
                        character,
-                       Time{});
+                       Time{SpecialAttack::SPECIAL_ATTACK_LIFE_TIME});
 
             b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
         }

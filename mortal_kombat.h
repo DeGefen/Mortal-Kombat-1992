@@ -228,10 +228,10 @@ namespace mortal_kombat
         /// @brief SpecialAttack component holds the special move type and inputs for the attack.
         struct SpecialAttack {
             SpecialAttacks type;
-            int attacker;
             bool direction;
             int frame = 0;
             int totalFrames = 0;
+            bool explode = false;
 
             static constexpr int SPECIAL_ATTACK_LIFE_TIME = 50;
         };
