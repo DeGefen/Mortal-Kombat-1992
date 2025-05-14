@@ -764,12 +764,20 @@ namespace mortal_kombat
         }
 
     void MK::createBackground(std::string backgroundPath) {
+
         // Load the image as a surface
         SDL_Surface* surface = IMG_Load(backgroundPath.c_str());
         if (!surface) {
             SDL_Log("Failed to load image: %s, SDL_Error: %s", backgroundPath.c_str(), SDL_GetError());
             return;
         }
+
+        const SDL_PixelFormatDetails *fmt = SDL_GetPixelFormatDetails(surface->format);
+
+        SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
+                                                      BACKGROUND_COLOR_IGNORE_RED,
+                                                      BACKGROUND_COLOR_IGNORE_GREEN,
+                                                      BACKGROUND_COLOR_IGNORE_BLUE));
 
         // Create a texture from the surface
         SDL_Texture* texture = SDL_CreateTextureFromSurface(ren, surface);
@@ -780,14 +788,25 @@ namespace mortal_kombat
             return;
         }
 
-        // Create entity with full window size texture
-        bagel::Entity entity = bagel::Entity::create();
-        entity.addAll(
+        // Create fence
+        bagel::Entity fence = bagel::Entity::create();
+        fence.addAll(
             Position{0, 0},
             Texture{
                 texture,
-                { 280, 320, 320, 80 }, // Only show the red/black part
-                { 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT } // Stretch or place as needed
+                { fenceX, fenceY, fenceW, fenceH }, // Only show the red/black part
+                { 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT / 1.3f} // Stretch or place as needed
+            }
+        );
+
+        // Create temple
+        bagel::Entity temple = bagel::Entity::create();
+        temple.addAll(
+            Position{0, 0},
+            Texture{
+                texture,
+                { templeX, templeY, templeW, templeH }, // Only show the red/black part
+                { 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT } // Stretch to fit window
             }
         );
     }
