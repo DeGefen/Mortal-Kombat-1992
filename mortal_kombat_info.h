@@ -53,27 +53,19 @@ namespace mortal_kombat
         WIN
     };
 
-    /// @brief Enum AttackType hold the different attacks types.
-    enum class AttackType
-    {
-        LOW_PUNCH, HIGH_PUNCH, LOW_KICK, HIGH_KICK,
-        LOW_JUMP_KICK, HIGH_JUMP_KICK, JUMP_PUNCH,
-        UPPERCUT, CROUCH_KICK, LOW_SWEEP_KICK,
-        HIGH_SWEEP_KICK, BLOCK
-    };
 
     /// @brief Enum AttackType hold the different special attacks types.
-    enum class SpecialAttackType
+    enum class SpecialAttacks
     {
-        FIREBALL, TELEPORT, FLYING_KICK,
-        SPINNING_BIRD_KICK, SCORPION_PUNCH,
-        SUBZERO_FREEZE, SCORPION_TELEPORT,
-        SUBZERO_SLIDE, SCORPION_CHAIN
+        FIREBALL, EXPLOSION
     };
 
+    static constexpr int CHARACTER_SPRITE_SIZE = 46;
+    static constexpr int SPECIAL_ATTACK_SPRITE_SIZE = 2;
+
+    template<size_t SIZE>
     class SpriteData {
     public:
-        static constexpr int CHARACTER_SPRITE_SIZE = 46;
 
         struct SpriteInfo {
             int frameCount = 0;
@@ -81,7 +73,7 @@ namespace mortal_kombat
             int w = 230, h = 220;
         };
 
-        explicit constexpr SpriteData(const std::array<SpriteInfo, CHARACTER_SPRITE_SIZE>& spriteArray)
+        explicit constexpr SpriteData(const std::array<SpriteInfo, SIZE>& spriteArray)
                     : sprite(spriteArray) {}
 
         constexpr const SpriteInfo& operator[](State s) const {
@@ -92,11 +84,19 @@ namespace mortal_kombat
             return sprite[static_cast<int>(s)];
         }
 
+        constexpr const SpriteInfo& operator[](SpecialAttacks s) const {
+            return sprite[static_cast<int>(s)];
+        }
+
+        constexpr SpriteInfo& operator[](SpecialAttacks s) {
+            return sprite[static_cast<int>(s)];
+        }
+
     private:
-        std::array<SpriteInfo, CHARACTER_SPRITE_SIZE> sprite;
+        std::array<SpriteInfo, SIZE> sprite;
     };
 
-    static constexpr std::array<SpriteData::SpriteInfo, SpriteData::CHARACTER_SPRITE_SIZE> SUBZERO_SPRITE_ARRAY{{
+    static constexpr std::array<SpriteData<CHARACTER_SPRITE_SIZE>::SpriteInfo, CHARACTER_SPRITE_SIZE> SUBZERO_SPRITE_ARRAY{{
                 {12, 32,   58, 230, 220}, // Stance
                 {9,  3074, 58, 230, 220},  // Walk Forwards
                 {9,  3074, 58, 230, 220},  // Walk Backwards
@@ -136,7 +136,7 @@ namespace mortal_kombat
                 {3,  1436, 6122, 230, 220},  // Crouch Block
                 {4,  2372, 6122, 230, 220},  // Turn Right to Left
                 {4,  3542, 6122, 230, 220},  // Turn Left to Right
-                {10, 32,   6644, 230, 220}, // Special 1
+                {10, 32,   6644, 281, 220}, // Special 1
                 {3,  3542, 6644, 230, 220},  // Special 2
                 {-1, -1,   -1, 230, 220},  // Special 3
                 {7,  32,   7166, 230, 220},  // Giddy
@@ -145,7 +145,14 @@ namespace mortal_kombat
                 {4,  32,   7688, 230, 220},  // Win
     }};
 
-    static constexpr std::array<SpriteData::SpriteInfo, SpriteData::CHARACTER_SPRITE_SIZE> LIU_KANG_SPRITE_ARRAY{{
+    static constexpr std::array<SpriteData<SPECIAL_ATTACK_SPRITE_SIZE>::SpriteInfo, SPECIAL_ATTACK_SPRITE_SIZE>
+    SUBZERO_SPECIAL_SPRITE_ARRAY{{
+                {1, 2881,   6720, 80, 28}, // Ice-Ball
+                {4, 2964, 6669, 76, 123} // Ice-Ball Hit
+
+    }};
+
+    static constexpr std::array<SpriteData<CHARACTER_SPRITE_SIZE>::SpriteInfo, CHARACTER_SPRITE_SIZE> LIU_KANG_SPRITE_ARRAY{{
                 {8, 32,   58, 230, 220}, // Stance
                 {9,  2138, 58, 230, 220},  // Walk Forwards
                 {9,  2138, 58, 230, 220},  // Walk Backwards
@@ -194,9 +201,16 @@ namespace mortal_kombat
                 {14,  32,   8210, 230, 220},  // Win
     }};
 
-    static constexpr SpriteData SUBZERO_SPRITE(SUBZERO_SPRITE_ARRAY);
+    static constexpr std::array<SpriteData<SPECIAL_ATTACK_SPRITE_SIZE>::SpriteInfo, SPECIAL_ATTACK_SPRITE_SIZE>
+    LIU_KANG_SPECIAL_SPRITE_ARRAY{{
+                {1, 1902,   6708, 68, 15}, // Fire-Ball
+                {6, 2046, 6665, 65, 87} // Fire-Ball Hit
+    }};
 
-    static constexpr SpriteData LIU_KANG_SPRITE(LIU_KANG_SPRITE_ARRAY);
+    static constexpr SpriteData<CHARACTER_SPRITE_SIZE> SUBZERO_SPRITE(SUBZERO_SPRITE_ARRAY);
+    static constexpr SpriteData<CHARACTER_SPRITE_SIZE> LIU_KANG_SPRITE(LIU_KANG_SPRITE_ARRAY);
+    static constexpr SpriteData<SPECIAL_ATTACK_SPRITE_SIZE> SUBZERO_SPECIAL_ATTACK_SPRITE(SUBZERO_SPECIAL_SPRITE_ARRAY);
+    static constexpr SpriteData<SPECIAL_ATTACK_SPRITE_SIZE> LIU_SPECIAL_ATTACK_SPRITE(LIU_KANG_SPECIAL_SPRITE_ARRAY);
 };
 
 
