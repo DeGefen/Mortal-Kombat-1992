@@ -189,8 +189,8 @@ namespace mortal_kombat
                         {
                             movement.vx = FALL_SPEED
                                         * (playerState.direction == LEFT ? 1.0f : -1.0f);
-                            break;
                         }
+                        break;
                     default:
                         if (!playerState.isJumping)
                             movement.reset();
@@ -265,6 +265,7 @@ namespace mortal_kombat
 
         static const bagel::Mask maskPlayer = bagel::MaskBuilder()
             .set<PlayerState>()
+            .set<Health>()
             .set<Character>()
             .build();
 
@@ -292,7 +293,17 @@ namespace mortal_kombat
 
                 if (entity.test(maskPlayer)) {
                     auto& playerState = entity.get<PlayerState>();
+                    auto& health = entity.get<Health>();
                     auto& character = entity.get<Character>();
+
+                    if (health.health <= 0 && playerState.state != State::GIDDY_FALL) {
+                        playerState.reset();
+                        playerState.state = State::GIDDY_FALL;
+                        playerState.busyFrames = character.sprite[playerState.state].frameCount;
+                        playerState.freezeFrame = playerState.busyFrames - 1;
+                        playerState.freezeFrameDuration = 1000;
+                        playerState.busy = true;
+                    }
 
                     flipMode = (playerState.direction == LEFT) ?
                         SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
@@ -300,7 +311,7 @@ namespace mortal_kombat
                     const int frame = (playerState.state == State::WALK_BACKWARDS)
                         ? (playerState.busyFrames - (playerState.currFrame % playerState.busyFrames)): (playerState.currFrame);
 
-                    texture.srcRect = MK::getSpriteFrame(character, playerState.state, frame);
+                    texture.srcRect = getSpriteFrame(character, playerState.state, frame);
                     texture.rect.w = static_cast<float>((character.sprite[playerState.state].w)) * SCALE_CHARACTER;
                     texture.rect.h = static_cast<float>((character.sprite[playerState.state].h)) * SCALE_CHARACTER;
                 }
@@ -311,8 +322,7 @@ namespace mortal_kombat
                     flipMode = (specialAttack.direction == LEFT) ?
                         SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
 
-                    texture.srcRect = MK::getSpriteFrame(character, specialAttack.type, specialAttack.frame);
-
+                    texture.srcRect = getSpriteFrame(character, specialAttack.type, specialAttack.frame);
                     texture.rect.w = static_cast<float>((character.specialAttackSprite[specialAttack.type].w)) * SCALE_CHARACTER;
                     texture.rect.h = static_cast<float>((character.specialAttackSprite[specialAttack.type].h)) * SCALE_CHARACTER;
                 }
@@ -339,10 +349,9 @@ namespace mortal_kombat
                     + (shadow ? (SHADOW_OFFSET + character.sprite[action].h) : 0)) + 1
                 ,static_cast<float>(character.sprite[action].w) - 2
                 ,static_cast<float>(character.sprite[action].h) - 2};
-    };
+    }
 
-    SDL_FRect MK::getSpriteFrame(const Character& character, SpecialAttacks action,
-                                            int frame)
+    SDL_FRect MK::getSpriteFrame(const Character& character, SpecialAttacks action, int frame)
     {
         return {static_cast<float>(character.specialAttackSprite[action].x
                     + ((frame % character.specialAttackSprite[(action)].frameCount)
@@ -350,7 +359,17 @@ namespace mortal_kombat
                 ,static_cast<float>(character.specialAttackSprite[action].y) + 1
                 ,static_cast<float>(character.specialAttackSprite[action].w) - 2
                 ,static_cast<float>(character.specialAttackSprite[action].h) - 2};
-    };
+    }
+
+    SDL_FRect MK::getWinSpriteFrame(const Character& character, int frame)
+    {
+        return {static_cast<float>(character.winText.x
+                    + (frame % character.winText.frameCount)
+                    * (NEXT_FRAME_OFFSET + character.winText.w)) + 1
+                ,static_cast<float>(character.winText.y) + 1
+                ,static_cast<float>(character.winText.w) - 2
+                ,static_cast<float>(character.winText.h) - 2};
+    }
 
     void MK::PlayerSystem() const
     {
@@ -1031,6 +1050,7 @@ namespace mortal_kombat
                 }
                 break;
             default:
+                break;
         }
     }
 
@@ -1141,7 +1161,7 @@ namespace mortal_kombat
     // ------------------------------- Helper Functions -------------------------------
 
 
-    // ------------------------------- Create Functions -------------------------------
+    // ------------------------------- Entities -------------------------------
 
     bagel::ent_type MK::createPlayer(float x, float y, Character character, int playerNumber) const
     {
@@ -1399,7 +1419,6 @@ namespace mortal_kombat
         // Dimensions of the green health bar in the texture
         SDL_FRect GREEN_BAR_SRC = { 5406, 49, 163, 12 };  // Green (top bar)
         SDL_FRect RED_BAR_SRC   = { 5406, 63, 163, 12 }; // Red  (bottom bar)
-        SDL_FRect NAME_BAR_SRC   = { 5406, 98, 163, 12 }; // Name bar
 
         // Bar dimensions
         const float BAR_WIDTH = 250.0f;
@@ -1516,7 +1535,7 @@ namespace mortal_kombat
             Position{ MARGIN, OFFSET_Y },
             Texture{
                 nameTexture,
-                NAME_BAR_SRC,
+                player1.get<Character>().leftBarNameSource,
                 SDL_FRect{ MARGIN, OFFSET_Y, BAR_WIDTH, BAR_HEIGHT }
             }
         );
@@ -1551,7 +1570,7 @@ namespace mortal_kombat
             Position{ xRight, OFFSET_Y },
             Texture{
                 nameTexture,
-                NAME_BAR_SRC,
+                player2.get<Character>().rightBarNameSource,
                 SDL_FRect{ xRight, OFFSET_Y, BAR_WIDTH, BAR_HEIGHT }
             }
         );

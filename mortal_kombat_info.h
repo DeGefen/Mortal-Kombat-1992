@@ -1,8 +1,10 @@
 #pragma once
 #include <array>
+#include <cstddef>
 
 namespace mortal_kombat
 {
+
     /// @brief Enum State holds the different states of the player.
     enum class State {
         STANCE = 0,
@@ -54,50 +56,58 @@ namespace mortal_kombat
     };
 
 
-    /// @brief Enum AttackType hold the different special attacks types.
+    /// @brief Enum SpecialAttacks hold the different special attacks types.
     enum class SpecialAttacks
     {
-        FIREBALL, EXPLOSION, NONE
+        FIREBALL,
+        EXPLOSION,
+        NONE
+    };
+
+    /// @brief Enum CharacterType hold the different character types.
+    enum class CharacterType
+    {
+        CAGE,
+        KANO,
+        RAIDEN,
+        LIU_KANG,
+        SCORPION,
+        SUBZERO,
+        SONYA,
+        GORO,
+        SHANG_TSUNG
     };
 
     static constexpr int CHARACTER_SPRITE_SIZE = 46;
     static constexpr int SPECIAL_ATTACK_SPRITE_SIZE = 2;
+    static constexpr int WIN_SPRITE_BY_CHARACTER_SIZE = 9;
 
-    template<size_t SIZE>
+    struct SpriteInfo {
+        int frameCount = 0;
+        int x = 0, y = 0;
+        int w = 230, h = 220;
+    };
+
+    template<class T, size_t SIZE>
     class SpriteData {
     public:
-
-        struct SpriteInfo {
-            int frameCount = 0;
-            int x = 0, y = 0;
-            int w = 230, h = 220;
-        };
-
         explicit constexpr SpriteData(const std::array<SpriteInfo, SIZE>& spriteArray)
                     : sprite(spriteArray) {}
 
-        constexpr const SpriteInfo& operator[](State s) const {
+        constexpr const SpriteInfo& operator[](const T& s) const {
             return sprite[static_cast<int>(s)];
         }
 
-        constexpr SpriteInfo& operator[](State s) {
+        constexpr SpriteInfo& operator[](T& s) {
             return sprite[static_cast<int>(s)];
         }
-
-        constexpr const SpriteInfo& operator[](SpecialAttacks s) const {
-            return sprite[static_cast<int>(s)];
-        }
-
-        constexpr SpriteInfo& operator[](SpecialAttacks s) {
-            return sprite[static_cast<int>(s)];
-        }
-
 
     private:
         std::array<SpriteInfo, SIZE> sprite;
     };
 
-    static constexpr std::array<SpriteData<CHARACTER_SPRITE_SIZE>::SpriteInfo, CHARACTER_SPRITE_SIZE> SUBZERO_SPRITE_ARRAY{{
+    static constexpr std::array<SpriteInfo, CHARACTER_SPRITE_SIZE>
+    SUBZERO_SPRITE_ARRAY{{
                 {12, 32,   58, 230, 220}, // Stance
                 {9,  3074, 58, 230, 220},  // Walk Forwards
                 {9,  3074, 58, 230, 220},  // Walk Backwards
@@ -146,14 +156,28 @@ namespace mortal_kombat
                 {4,  32,   7688, 230, 220},  // Win
     }};
 
-    static constexpr std::array<SpriteData<SPECIAL_ATTACK_SPRITE_SIZE>::SpriteInfo, SPECIAL_ATTACK_SPRITE_SIZE>
+    static constexpr std::array<SpriteInfo, SPECIAL_ATTACK_SPRITE_SIZE>
     SUBZERO_SPECIAL_SPRITE_ARRAY{{
-                {1, 2881,   6720, 80, 28}, // Ice-Ball
+                {1, 2881, 6720, 80, 28}, // Ice-Ball
                 {4, 2964, 6669, 76, 123} // Ice-Ball Hit
-
     }};
 
-    static constexpr std::array<SpriteData<CHARACTER_SPRITE_SIZE>::SpriteInfo, CHARACTER_SPRITE_SIZE> LIU_KANG_SPRITE_ARRAY{{
+    static constexpr std::array<SpriteInfo, WIN_SPRITE_BY_CHARACTER_SIZE>
+    WIN_SPRITE_BY_CHARACTER_ARRAY{{
+        {2, 3714, 15, 300, 50}, // Cage
+        {2, 3714, 67, 300, 50}, // Kano
+        {2, 3714, 119, 300, 50}, // Raiden
+        {2, 3714, 171, 300, 50}, // Liu Kang
+        {2, 3714, 223, 300, 50}, // Scorpion
+        {2, 3714, 275, 300, 50}, // Sub-zero
+        {2, 3714, 327, 300, 50}, // Sonya
+        {2, 3714, 379, 300, 50}, // Goro
+        {2, 3714, 431, 300, 50}, // Shang Tsung
+    }};
+
+
+    static constexpr std::array<SpriteInfo, CHARACTER_SPRITE_SIZE>
+    LIU_KANG_SPRITE_ARRAY{{
                 {8, 32,   58, 230, 220}, // Stance
                 {9,  2138, 58, 230, 220},  // Walk Forwards
                 {9,  2138, 58, 230, 220},  // Walk Backwards
@@ -202,14 +226,15 @@ namespace mortal_kombat
                 {14,  32,   8210, 230, 220},  // Win
     }};
 
-    static constexpr std::array<SpriteData<SPECIAL_ATTACK_SPRITE_SIZE>::SpriteInfo, SPECIAL_ATTACK_SPRITE_SIZE>
+    static constexpr std::array<SpriteInfo, SPECIAL_ATTACK_SPRITE_SIZE>
     LIU_KANG_SPECIAL_SPRITE_ARRAY{{
                 {1, 1902,   6708, 68, 15}, // Fire-Ball
                 {6, 2046, 6665, 65, 87} // Fire-Ball Hit
     }};
 
-    static constexpr SpriteData<CHARACTER_SPRITE_SIZE> SUBZERO_SPRITE(SUBZERO_SPRITE_ARRAY);
-    static constexpr SpriteData<CHARACTER_SPRITE_SIZE> LIU_KANG_SPRITE(LIU_KANG_SPRITE_ARRAY);
-    static constexpr SpriteData<SPECIAL_ATTACK_SPRITE_SIZE> SUBZERO_SPECIAL_ATTACK_SPRITE(SUBZERO_SPECIAL_SPRITE_ARRAY);
-    static constexpr SpriteData<SPECIAL_ATTACK_SPRITE_SIZE> LIU_SPECIAL_ATTACK_SPRITE(LIU_KANG_SPECIAL_SPRITE_ARRAY);
+    static constexpr SpriteData<State, CHARACTER_SPRITE_SIZE> SUBZERO_SPRITE(SUBZERO_SPRITE_ARRAY);
+    static constexpr SpriteData<State, CHARACTER_SPRITE_SIZE> LIU_KANG_SPRITE(LIU_KANG_SPRITE_ARRAY);
+    static constexpr SpriteData<SpecialAttacks, SPECIAL_ATTACK_SPRITE_SIZE> SUBZERO_SPECIAL_ATTACK_SPRITE(SUBZERO_SPECIAL_SPRITE_ARRAY);
+    static constexpr SpriteData<SpecialAttacks, SPECIAL_ATTACK_SPRITE_SIZE> LIU_SPECIAL_ATTACK_SPRITE(LIU_KANG_SPECIAL_SPRITE_ARRAY);
+    static constexpr SpriteData<CharacterType, WIN_SPRITE_BY_CHARACTER_SIZE> WIN_SPRITE(WIN_SPRITE_BY_CHARACTER_ARRAY);
 };
