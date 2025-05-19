@@ -226,6 +226,11 @@ namespace mortal_kombat
             bagel::ent_type target;  // Reference to actual player entity
         };
 
+        /// @brief Tag to indicate this is a win message UI entity.
+        struct WinMessage {
+            std::string text;
+        };
+
         /* =============== Systems =============== */
 
         /// @brief Updates the position of entities based on their movement components.
