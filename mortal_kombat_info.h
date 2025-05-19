@@ -1,11 +1,17 @@
+/**
+ * @file mortal_kombat_info.h
+ * @brief Contains core enums, sprite data structures, and constants for Mortal Kombat 1992.
+ *
+ * Defines player states, character types, special attacks, and sprite layout information.
+ */
+
 #pragma once
 #include <array>
-#include <cstddef>
 
 namespace mortal_kombat
 {
-
-    /// @brief Enum State holds the different states of the player.
+    /// @enum State
+    /// @brief Holds the different states of the player.
     enum class State {
         STANCE = 0,
         WALK_FORWARDS,
@@ -82,22 +88,32 @@ namespace mortal_kombat
     static constexpr int SPECIAL_ATTACK_SPRITE_SIZE = 2;
     static constexpr int WIN_SPRITE_BY_CHARACTER_SIZE = 9;
 
+    /// @brief SpriteInfo struct holds the sprite information.
     struct SpriteInfo {
         int frameCount = 0;
         float x = 0, y = 0;
         float w = 230, h = 220;
     };
 
+    /**
+     * @class SpriteData
+     * @brief Holds the sprite data for a character.
+     *
+     * Contains an array of SpriteInfo objects, each representing a different state of the character.
+     * Provides access to the sprite data using an enum class as the index.
+     */
     template<class T, size_t SIZE>
     class SpriteData {
     public:
         explicit constexpr SpriteData(const std::array<SpriteInfo, SIZE>& spriteArray)
                     : sprite(spriteArray) {}
 
+        /// @brief Returns the sprite information for the given state.
         constexpr const SpriteInfo& operator[](const T& s) const {
             return sprite[static_cast<int>(s)];
         }
 
+        /// @brief Returns the sprite information for the given state.
         constexpr SpriteInfo& operator[](T& s) {
             return sprite[static_cast<int>(s)];
         }
@@ -162,20 +178,6 @@ namespace mortal_kombat
                 {4, 2964, 6669, 76, 123} // Ice-Ball Hit
     }};
 
-    static constexpr std::array<SpriteInfo, WIN_SPRITE_BY_CHARACTER_SIZE>
-    WIN_SPRITE_BY_CHARACTER_ARRAY{{
-        {2, 3714, 15, 300, 50}, // Cage
-        {2, 3714, 67, 300, 50}, // Kano
-        {2, 3714, 119, 300, 50}, // Raiden
-        {2, 3714, 171, 300, 50}, // Liu Kang
-        {2, 3714, 223, 300, 50}, // Scorpion
-        {2, 3714, 275, 300, 50}, // Sub-zero
-        {2, 3714, 327, 300, 50}, // Sonya
-        {2, 3714, 379, 300, 50}, // Goro
-        {2, 3714, 431, 300, 50}, // Shang Tsung
-    }};
-
-
     static constexpr std::array<SpriteInfo, CHARACTER_SPRITE_SIZE>
     LIU_KANG_SPRITE_ARRAY{{
                 {8, 32,   58, 230, 220}, // Stance
@@ -224,6 +226,19 @@ namespace mortal_kombat
                 {0,  1904, 7166, 230, 220},  // Finish Him
                 {7,  2606, 7166, 230, 220},  // Giddy Fall
                 {14,  32,   8210, 230, 220},  // Win
+    }};
+
+    static constexpr std::array<SpriteInfo, WIN_SPRITE_BY_CHARACTER_SIZE>
+    WIN_SPRITE_BY_CHARACTER_ARRAY{{
+        {2, 3714, 15, 329, 52}, // Cage
+        {2, 3714, 67, 329, 52}, // Kano
+        {2, 3714, 119, 329, 52}, // Raiden
+        {2, 3714, 171, 329, 52}, // Liu Kang
+        {2, 3714, 223, 329, 52}, // Scorpion
+        {2, 3714, 275, 329, 52}, // Sub-zero
+        {2, 3714, 327, 329, 52}, // Sonya
+        {2, 3714, 379, 329, 52}, // Goro
+        {2, 3714, 431, 329, 52}, // Shang Tsung
     }};
 
     static constexpr std::array<SpriteInfo, SPECIAL_ATTACK_SPRITE_SIZE>

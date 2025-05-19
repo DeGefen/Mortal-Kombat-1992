@@ -1,3 +1,10 @@
+/**
+ * @file mortal_kombat.h
+ * @brief Mortal Kombat 1992 game engine header file.
+ *
+ * This file contains the main game class, components
+ **/
+
 #pragma once
 #include "mortal_kombat_info.h"
 #include <functional>
@@ -8,16 +15,35 @@
 #include "box2d/box2d.h"
 #include "bagel.h"
 #include "lib/box2d/src/body.h"
-#include "SDL3_image/SDL_image.h"
 
+/**
+ * @namespace mortal_kombat
+ * @brief Contains all core logic and data structures for the Mortal Kombat game.
+ */
 namespace mortal_kombat
 {
+    /**
+     * @class MK
+     * @brief Main game class for Mortal Kombat 1992.
+     *
+     * Handles initialization, game loop, systems, and entity/component management.
+     */
     class MK
     {
     public:
-        MK();
-        ~MK();
-        void run();
+        /// @brief Constructs the MK game object and starts the game.
+        MK() {start();}
+        /// @brief Destructor. Cleans up resources.
+        ~MK() {destroy();}
+
+        /// @brief Runs the main game loop.
+        void run() const;
+
+        /// @brief Initializes the game.
+        void start();
+
+        ///@brief Destroys and cleans up the game.
+        void destroy() const;
 
     private:
 
@@ -51,6 +77,7 @@ namespace mortal_kombat
 
         static constexpr bool LEFT = true;
         static constexpr bool RIGHT = false;
+
         // Background constants
         // -------------------------------------------------------
         static constexpr int fenceX = 290;
@@ -71,8 +98,6 @@ namespace mortal_kombat
         SDL_Window* win{};
         b2WorldId boxWorld{};
 
-        void prepareBoxWorld();
-
         /* =============== Components =============== */
         /// @brief Position component holds the x and y coordinates of an object.
         struct Position {
@@ -90,7 +115,6 @@ namespace mortal_kombat
             SDL_Texture *tex = nullptr;
             SDL_FRect srcRect = {0, 0, 0, 0}; // Source rectangle for texture
             SDL_FRect rect = {0, 0, 0, 0}; // Destination rectangle for rendering
-
         };
 
         /// @brief Collider component holds the physics body and shape.
@@ -118,6 +142,8 @@ namespace mortal_kombat
             int freezeFrame = NONE; // Frame to freeze the player
             int freezeFrameDuration = 0; // Duration of the freeze-frame
             int specialAttackCooldown = 0; // Cooldown for special attacks //todo: add cooldown
+
+            /// @brief Resets the player state to default values.
             void reset()
             {
                 state = State::STANCE;
@@ -203,12 +229,15 @@ namespace mortal_kombat
             }
 
             /// @brief Returns the input at the given index in the history.
+            /// @param i index of the input
+            /// @return reference to the input at the given index.
             Input& operator[](const int i)
             {
                 return history[(index - i + MAX_HISTORY) % MAX_HISTORY];
             }
 
             /// @brief Increments the index and resets the current input.
+            /// @return The new index.
             int operator++(int)
             {
                 index = (index + 1) % MAX_HISTORY;
@@ -247,8 +276,8 @@ namespace mortal_kombat
             float specialAttackOffset_y{};
             // SpecialAttack are times 2 because of the direction
             Input specialAttacks[SPECIAL_ATTACKS_COUNT * 2][COMBO_LENGTH] = {};
-            SDL_FRect leftBarNameSource;
-            SDL_FRect rightBarNameSource;
+            SDL_FRect leftBarNameSource{};
+            SDL_FRect rightBarNameSource{};
             SpriteInfo winText;
         };
 
@@ -261,13 +290,6 @@ namespace mortal_kombat
         /// @brief Time component holds the time remaining in the match.
         struct Time {
             float time = 0.0f;
-        };
-
-        /// @brief Score component holds the score of the player.
-        struct Score {
-            int round = 0;
-            int player1_score = 0;
-            int player2_score = 0;
         };
 
         /// @brief Boundary tag component is used to identify boundary entities.
@@ -288,7 +310,6 @@ namespace mortal_kombat
 
         /// @brief Tag to indicate this is a win message UI entity.
         struct WinMessage {
-            std::string text;
         };
 
         /* =============== Systems =============== */
@@ -328,21 +349,16 @@ namespace mortal_kombat
         static SDL_FRect getSpriteFrame(const Character& character, SpecialAttacks action,
                                             int frame);
 
-        SDL_FRect getWinSpriteFrame(const Character &character, int frame) const;
-
-        SDL_FRect getWinSpriteFrame(const Character &character, int frame);
+        /// @brief Returns the sprite rectangle for a given action and frame.
+        /// @param character Character data for the player.
+        /// @param frame Frame number of the action.
+        static SDL_FRect getWinSpriteFrame(const Character &character, int frame) ;
 
         /// @brief Manages player-specific logic, such as state and character updates.
         void PlayerSystem() const;
 
         /// @brief Handles collision detection and response for entities with colliders.
         void CollisionSystem() const;
-
-        /// @brief Manages match-related logic, such as health updates and round progression.
-        void MatchSystem();
-
-        /// @brief Determines the winner of the match based on scores.
-        void WinSystem(Character winCharacter) const;
 
         /// @brief Updates the game clock and manages time-related logic.
         static void ClockSystem();
@@ -367,10 +383,11 @@ namespace mortal_kombat
         public:
             enum class IgnoreColorKey
             {
-                CHARCHTER,
+                CHARACTER,
                 BACKGROUND,
                 NAME_BAR,
-                DAMAGE_BAR
+                DAMAGE_BAR,
+                WIN_TEXT,
             };
             /// @brief Loads a texture from a file and caches it for future use.
             static SDL_Texture* getTexture(SDL_Renderer* renderer, const std::string& filePath, IgnoreColorKey ignoreColorKey);
@@ -401,11 +418,15 @@ namespace mortal_kombat
             static constexpr Uint8 COLOR_KEY_NAME_BAR_GREEN = 165;
             static constexpr Uint8 COLOR_KEY_NAME_BAR_BLUE = 0;
 
+            static constexpr Uint8 WIN_TEXT_COLOR_IGNORE_RED = 245;
+            static constexpr Uint8 WIN_TEXT_COLOR_IGNORE_GREEN = 10;
+            static constexpr Uint8 WIN_TEXT_COLOR_IGNORE_BLUE = 237;
+
 
             static std::unordered_map<std::string, SDL_Texture*> textureCache;
         };
 
-        void HealthBarSystem();
+        static void HealthBarSystem();
 
         /* =============== Entities =============== */
         /// @brief Entity is a unique identifier for each game object.
@@ -436,18 +457,27 @@ namespace mortal_kombat
         /// @param side boundary side (left or right).
         void createBoundary(bool side) const;
 
-        /// @brief Creates a game info entity.
-        /// @param initialTime Initial time for the game.
-        static inline void createGameInfo(float initialTime);
-
         /// @brief Creates a background entity.
         /// @param backgroundName SDL texture for the background.
         inline void createBackground(const std::string& backgroundName) const;
 
-        void createBar(bagel::Entity player1, bagel::Entity player2);
+        /// @brief Creates a health bar entity.
+        /// tracks the health of the players.
+        /// @param player1 Player 1 entity.
+        /// @param player2 Player 2 entity.
+        void createBar(bagel::Entity player1, bagel::Entity player2) const;
 
-        void createWinText(Character winCharacter);
+        /// @brief Creates a win text entity.
+        /// @param winCharacter Character data for the winning player.
+        void createWinText(const Character& winCharacter) const;
 
+        /**
+         * @struct Characters
+         * @brief Represents the characters in the game.
+         *
+         * Contains all relevant data for a character, including name, health, position, and state.
+         * Used for managing character logic, rendering, and interactions in the game world.
+         */
         struct Characters
         {
             constexpr static Character SUBZERO = {

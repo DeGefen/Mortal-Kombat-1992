@@ -9,7 +9,7 @@ namespace mortal_kombat
 {
     std::unordered_map<std::string, SDL_Texture*> MK::TextureSystem::textureCache;
 
-    MK::MK()
+    void MK::start()
     {
         if (!SDL_Init(SDL_INIT_VIDEO)) {
             std::cout << SDL_GetError() << std::endl;
@@ -20,14 +20,25 @@ namespace mortal_kombat
                 "MK1992", WINDOW_WIDTH, WINDOW_HEIGHT, 0, &win, &ren)) {
             std::cout << SDL_GetError() << std::endl;
             return;
-        }
+                }
 
         SDL_SetRenderDrawColor(ren, 255,255,255,0);
 
-        prepareBoxWorld();
+        b2WorldDef worldDef = b2DefaultWorldDef();
+        worldDef.gravity = {0,0};
+        boxWorld = b2CreateWorld(&worldDef);
+
+        createBackground("res/Background.png");
+
+        createBoundary(LEFT);
+        createBoundary(RIGHT);
+        bagel::Entity player1 = createPlayer(PLAYER_1_BASE_X, PLAYER_BASE_Y, Characters::SUBZERO, 1);
+        bagel::Entity player2 = createPlayer(PLAYER_2_BASE_X, PLAYER_BASE_Y, Characters::LIU_KANG, 2);
+
+        createBar(player1, player2);
     }
 
-    MK::~MK()
+    void MK::destroy() const
     {
         for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id)
         {
@@ -53,28 +64,11 @@ namespace mortal_kombat
         SDL_Quit();
     }
 
-    void MK::prepareBoxWorld()
-    {
-        b2WorldDef worldDef = b2DefaultWorldDef();
-        worldDef.gravity = {0,0};
-        boxWorld = b2CreateWorld(&worldDef);
-    }
-
     // ------------------------------- Game Loop -------------------------------
 
-    void MK::run()
+    void MK::run() const
     {
         int frame_count = 0;
-
-        createBackground("res/Background.png");
-
-        createBoundary(LEFT);
-        createBoundary(RIGHT);
-        bagel::Entity player1 = createPlayer(PLAYER_1_BASE_X, PLAYER_BASE_Y, Characters::SUBZERO, 1);
-        bagel::Entity player2 = createPlayer(PLAYER_2_BASE_X, PLAYER_BASE_Y, Characters::LIU_KANG, 2);
-
-        createBar(player1, player2);
-
         while (true)
         {
             Uint32 frameStart = SDL_GetTicks();
@@ -89,8 +83,7 @@ namespace mortal_kombat
             HealthBarSystem();
             AttackDecaySystem();
 
-            Uint32 frameTime = SDL_GetTicks() - frameStart;
-            if (FRAME_DELAY > frameTime) {
+            if (Uint32 frameTime = SDL_GetTicks() - frameStart; FRAME_DELAY > frameTime) {
                 SDL_Delay(FRAME_DELAY - frameTime);
             }
         }
@@ -273,6 +266,13 @@ namespace mortal_kombat
             .set<Character>()
             .build();
 
+        static const bagel::Mask maskWin = bagel::MaskBuilder()
+            .set<Position>()
+            .set<WinMessage>()
+            .set<Texture>()
+            .set<Time>()
+            .build();
+
         SDL_Event event;
 
         while (SDL_PollEvent(&event)) {
@@ -293,26 +293,10 @@ namespace mortal_kombat
 
                 if (entity.test(maskPlayer)) {
                     auto& playerState = entity.get<PlayerState>();
-                    auto& health = entity.get<Health>();
                     auto& character = entity.get<Character>();
 
                     const int frame = (playerState.state == State::WALK_BACKWARDS)
                         ? (playerState.busyFrames - (playerState.currFrame % playerState.busyFrames)): (playerState.currFrame);
-
-                    if (health.health <= 0) {
-                        if (playerState.state != State::GIDDY_FALL) {
-                            playerState.reset();
-                            playerState.state = State::GIDDY_FALL;
-                            playerState.isLaying = true;
-                            playerState.busyFrames = character.sprite[playerState.state].frameCount;
-                            playerState.freezeFrame = playerState.busyFrames - 1;
-                            playerState.freezeFrameDuration = 1000;
-                            playerState.busy = true;
-                            WinSystem(character);
-                        }
-
-                        continue;
-                    }
 
                     flipMode = (playerState.direction == LEFT) ?
                         SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
@@ -331,6 +315,13 @@ namespace mortal_kombat
                     texture.srcRect = getSpriteFrame(character, specialAttack.type, specialAttack.frame);
                     texture.rect.w = static_cast<float>((character.specialAttackSprite[specialAttack.type].w)) * SCALE_CHARACTER;
                     texture.rect.h = static_cast<float>((character.specialAttackSprite[specialAttack.type].h)) * SCALE_CHARACTER;
+                }
+                else if (entity.test(maskWin))
+                {
+                    auto& character = entity.get<Character>();
+                    texture.srcRect = getWinSpriteFrame(character, (static_cast<int>(entity.get<Time>().time) / 16));
+                    texture.rect.w = static_cast<float>((character.winText.w)) * SCALE_CHARACTER;
+                    texture.rect.h = static_cast<float>((character.winText.h)) * SCALE_CHARACTER;
                 }
 
                 texture.rect.x = position.x;
@@ -367,14 +358,14 @@ namespace mortal_kombat
                 ,static_cast<float>(character.specialAttackSprite[action].h) - 2};
     }
 
-    SDL_FRect MK::getWinSpriteFrame(const Character& character, const int frame) const
+    SDL_FRect MK::getWinSpriteFrame(const Character& character, const int frame)
     {
         return {static_cast<float>(character.winText.x
-                    + (frame % character.winText.frameCount)
-                    * (NEXT_FRAME_OFFSET + character.winText.w)) + 1
-                ,static_cast<float>(character.winText.y) + 1
-                ,static_cast<float>(character.winText.w) - 2
-                ,static_cast<float>(character.winText.h) - 2};
+                    + ((frame % character.winText.frameCount)
+                    * (NEXT_FRAME_OFFSET + character.winText.w))) + 2
+                ,static_cast<float>(character.winText.y) + 2
+                ,static_cast<float>(character.winText.w) - 4
+                ,static_cast<float>(character.winText.h) - 4};
     }
 
     void MK::PlayerSystem() const
@@ -601,9 +592,8 @@ namespace mortal_kombat
                     if (playerState.isSpecialAttack
                         && (playerState.currFrame % character.sprite[playerState.state].frameCount) == character.sprite[playerState.state].frameCount / 2)
                         createSpecialAttack(x, y, SpecialAttacks::FIREBALL, playerState.playerNumber, playerState.direction, character);
-                    else if (playerState.isJumping)
-                        createAttack(x, y, playerState.state, playerState.playerNumber, playerState.direction);
-                    else if ((playerState.currFrame % character.sprite[playerState.state].frameCount) == character.sprite[playerState.state].frameCount / 3)
+                    else if (playerState.isJumping
+                            || (playerState.currFrame % character.sprite[playerState.state].frameCount) == character.sprite[playerState.state].frameCount / 3)
                         createAttack(x, y, playerState.state, playerState.playerNumber, playerState.direction);
                 }
             }
@@ -620,7 +610,8 @@ namespace mortal_kombat
             auto& p1Char = player1.get<Character>();
             auto& p2Char = player2.get<Character>();
 
-            auto handleWinLose = [&](bagel::Entity& loser, bagel::Entity& winner) {
+            auto handleWinLose = [&](const bagel::Entity& loser, const bagel::Entity& winner) {
+                createWinText(winner.get<Character>());
                 bool isJumping = loser.get<PlayerState>().isJumping;
                 loser.get<PlayerState>().reset();
                 loser.get<PlayerState>().state = State::GIDDY_FALL;
@@ -648,7 +639,7 @@ namespace mortal_kombat
             // Direction update
             bool isPlayer1Direction = player1.get<Position>().x < player2.get<Position>().x ? RIGHT : LEFT;
             bool isPlayer2Direction = !isPlayer1Direction;
-            auto updateDirection = [](bagel::Entity& player, bool newDir, const Character& character) {
+            auto updateDirection = [](const bagel::Entity& player, bool newDir, const Character& character) {
                 auto& state = player.get<PlayerState>();
                 if (!state.isJumping && !state.busy && state.direction != newDir) {
                     state.direction = newDir;
@@ -788,52 +779,6 @@ namespace mortal_kombat
                     eBody.get<Collider>().isRightBoundarySensor = false;
             }
         }
-    }
-
-    void MK::MatchSystem() {
-
-    }
-
-    void MK::WinSystem(Character winCharacter) const {
-        static SDL_Texture* texture = nullptr;
-
-        const int WIN_TEXT_COLOR_IGNORE_RED = 245;
-        const int WIN_TEXT_COLOR_IGNORE_GREEN = 10;
-        const int WIN_TEXT_COLOR_IGNORE_BLUE = 237;
-
-        // Load the image as a surface
-        SDL_Surface* surface = IMG_Load("res/Menus & Text.png");
-        if (!surface) {
-            SDL_Log("Failed to load image: %s, SDL_Error: %s", "res/Menus & Text.png", SDL_GetError());
-            return;
-        }
-
-        // Set the color key for the surface
-        const SDL_PixelFormatDetails *fmt = SDL_GetPixelFormatDetails(surface->format);
-
-        SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
-                                                      WIN_TEXT_COLOR_IGNORE_RED,
-                                                      WIN_TEXT_COLOR_IGNORE_GREEN,
-                                                      WIN_TEXT_COLOR_IGNORE_BLUE));
-
-        // Create a texture from the surface
-        texture = SDL_CreateTextureFromSurface(ren, surface);
-        SDL_DestroySurface(surface); // Free the surface after creating the texture
-
-        if (!texture) {
-            SDL_Log("Failed to create texture: %s, SDL_Error: %s", "res/Menus & Text.png", SDL_GetError());
-            return;
-        }
-
-        SDL_FRect srcRect = {winCharacter.winText.x, winCharacter.winText.y, winCharacter.winText.w, winCharacter.winText.h};
-        SDL_FRect dstRect = {0, 0, WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f};
-
-        SDL_RenderTexture(
-            ren,
-            texture,
-            &srcRect,
-            &dstRect
-        );
     }
 
     void MK::ClockSystem() {
@@ -1141,13 +1086,12 @@ namespace mortal_kombat
                 // Continue as usual
                 auto& damage = entity.get<DamageVisual>();
                 auto& texture = entity.get<Texture>();
-                auto& pos = entity.get<Position>();
 
                 float ratio = std::max(0.0f, health.health / health.max_health);
 
                 // Smooth trailing damage effect
-                const float TRAIL_SPEED = 0.5f;
                 if (damage.trailingHealth > health.health) {
+                    constexpr float TRAIL_SPEED = 0.5f;
                     damage.trailingHealth -= TRAIL_SPEED;
                     if (damage.trailingHealth < health.health)
                         damage.trailingHealth = health.health;
@@ -1177,7 +1121,7 @@ namespace mortal_kombat
         const SDL_PixelFormatDetails *fmt = SDL_GetPixelFormatDetails(surface->format);
         switch (ignoreColorKey)
         {
-            case IgnoreColorKey::CHARCHTER:
+            case IgnoreColorKey::CHARACTER:
                 SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
                                                       CHARACTER_COLOR_IGNORE_RED,
                                                       CHARACTER_COLOR_IGNORE_GREEN,
@@ -1201,6 +1145,11 @@ namespace mortal_kombat
                                                       COLOR_KEY_DAMAGE_BAR_GREEN,
                                                       COLOR_KEY_DAMAGE_BAR_BLUE));
                 break;
+        case IgnoreColorKey::WIN_TEXT:
+                SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
+                                                      WIN_TEXT_COLOR_IGNORE_RED,
+                                                      WIN_TEXT_COLOR_IGNORE_GREEN,
+                                                      WIN_TEXT_COLOR_IGNORE_BLUE));
         }
 
         SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
@@ -1220,43 +1169,42 @@ namespace mortal_kombat
 
     bagel::ent_type MK::createPlayer(float x, float y, Character character, int playerNumber) const
     {
+        // Construct the texture path
+        std::string texturePath = "res/" + std::string(character.name) + ".png";
+        auto texture = TextureSystem::getTexture(ren, texturePath, TextureSystem::IgnoreColorKey::CHARACTER);
 
-            // Construct the texture path
-            std::string texturePath = "res/" + std::string(character.name) + ".png";
-            auto texture = TextureSystem::getTexture(ren, texturePath, TextureSystem::IgnoreColorKey::CHARCHTER);
+        b2BodyDef bodyDef = b2DefaultBodyDef();
+        bodyDef.type = b2_kinematicBody;
+        bodyDef.position= getPosition(x, y);
 
-            b2BodyDef bodyDef = b2DefaultBodyDef();
-            bodyDef.type = b2_kinematicBody;
-            bodyDef.position= getPosition(x, y);
+        b2ShapeDef shapeDef = b2DefaultShapeDef();
+        shapeDef.enableSensorEvents = true;
+        shapeDef.isSensor = true;
 
-            b2ShapeDef shapeDef = b2DefaultShapeDef();
-            shapeDef.enableSensorEvents = true;
-            shapeDef.isSensor = true;
+        b2Polygon boxShape = b2MakeBox((CHARACTER_WIDTH / 2.0f) / WINDOW_SCALE,
+                                        (CHARACTER_HEIGHT / 2.0f) / WINDOW_SCALE);
 
-            b2Polygon boxShape = b2MakeBox((CHARACTER_WIDTH / 2.0f) / WINDOW_SCALE,
-                                            (CHARACTER_HEIGHT / 2.0f) / WINDOW_SCALE);
+        b2BodyId body = b2CreateBody(boxWorld, &bodyDef);
+        b2ShapeId shape = b2CreatePolygonShape(body, &shapeDef, &boxShape);
 
-            b2BodyId body = b2CreateBody(boxWorld, &bodyDef);
-            b2ShapeId shape = b2CreatePolygonShape(body, &shapeDef, &boxShape);
+        // Add components to the entity
+        PlayerState playerState;
+        playerState.playerNumber = playerNumber;
+        playerState.direction = (playerNumber == 1) ? RIGHT : LEFT;
 
-            // Add components to the entity
-            PlayerState playerState;
-            playerState.playerNumber = playerNumber;
-            playerState.direction = (playerNumber == 1) ? RIGHT : LEFT;
+        bagel::Entity entity = bagel::Entity::create();
+        entity.addAll(Position{x, y},
+                      Movement{0, 0},
+                      Collider{body, shape},
+                      Texture{texture},
+                      playerState,
+                      Inputs{},
+                      character,
+                      Health{100, 100});
 
-            bagel::Entity entity = bagel::Entity::create();
-            entity.addAll(Position{x, y},
-                          Movement{0, 0},
-                          Collider{body, shape},
-                          Texture{texture},
-                          playerState,
-                          Inputs{},
-                          character,
-                          Health{100, 100});
-
-            b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
-            return entity.entity();
-        }
+        b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
+        return entity.entity();
+    }
 
         void MK::createAttack(float x, float y, State type, int playerNumber, bool direction) const
         {
@@ -1338,7 +1286,7 @@ namespace mortal_kombat
         {
             // Construct the texture path
             std::string texturePath = "res/" + std::string(character.name) + ".png";
-            auto texture = TextureSystem::getTexture(ren, texturePath, TextureSystem::IgnoreColorKey::CHARCHTER);
+            auto texture = TextureSystem::getTexture(ren, texturePath, TextureSystem::IgnoreColorKey::CHARACTER);
 
             b2BodyDef bodyDef = b2DefaultBodyDef();
             bodyDef.type = b2_kinematicBody;
@@ -1411,17 +1359,7 @@ namespace mortal_kombat
             b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
         }
 
-    void MK::createGameInfo(float initialTime) {
-        bagel::Entity entity = bagel::Entity::create();
-
-        entity.addAll(Time{initialTime},
-                      Score{0, 0, 0},
-                      Position{0, 0},
-                      Texture{nullptr, SDL_FRect{0, 0, 100, 50}});
-
-    }
-
-    void MK::createBackground(const std::string& backgroundPath) const
+        void MK::createBackground(const std::string& backgroundPath) const
     {
 
         auto texture = TextureSystem::getTexture(ren, backgroundPath, TextureSystem::IgnoreColorKey::BACKGROUND);
@@ -1449,7 +1387,8 @@ namespace mortal_kombat
         );
     }
 
-    void MK::createBar(bagel::Entity player1, bagel::Entity player2) {
+    void MK::createBar(bagel::Entity player1, bagel::Entity player2) const
+    {
 
         // Dimensions of the green health bar in the texture
         SDL_FRect GREEN_BAR_SRC = { 5406, 49, 163, 12 };  // Green (top bar)
@@ -1465,7 +1404,6 @@ namespace mortal_kombat
         constexpr float xRight = WINDOW_WIDTH - BAR_WIDTH - MARGIN;
 
         // Load the image as a surface
-        SDL_Surface* original = IMG_Load("res/Menus & Text.png");
         auto barTexture = TextureSystem::getTexture(ren, "res/Menus & Text.png", TextureSystem::IgnoreColorKey::DAMAGE_BAR);
         auto nameTexture = TextureSystem::getTexture(ren, "res/Menus & Text.png", TextureSystem::IgnoreColorKey::NAME_BAR);
 
@@ -1540,45 +1478,19 @@ namespace mortal_kombat
         );
     }
 
-    void MK::createWinText(Character winCharacter) {
-
-        const int WIN_TEXT_COLOR_IGNORE_RED = 245;
-        const int WIN_TEXT_COLOR_IGNORE_GREEN = 10;
-        const int WIN_TEXT_COLOR_IGNORE_BLUE = 237;
-
+    void MK::createWinText(const Character& winCharacter) const
+    {
         // Load the image as a surface
-        SDL_Surface* surface = IMG_Load("res/Menus & Text.png");
-        if (!surface) {
-            SDL_Log("Failed to load image: %s, SDL_Error: %s", "res/Menus & Text.png", SDL_GetError());
-            return;
-        }
-
-        // Set the color key for the surface
-        const SDL_PixelFormatDetails *fmt = SDL_GetPixelFormatDetails(surface->format);
-
-        SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
-                                                      WIN_TEXT_COLOR_IGNORE_RED,
-                                                      WIN_TEXT_COLOR_IGNORE_GREEN,
-                                                      WIN_TEXT_COLOR_IGNORE_BLUE));
-
-        // Create a texture from the surface
-        SDL_Texture* texture = SDL_CreateTextureFromSurface(ren, surface);
-        SDL_DestroySurface(surface); // Free the surface after creating the texture
-
-        if (!texture) {
-            SDL_Log("Failed to create texture: %s, SDL_Error: %s", "res/Menus & Text.png", SDL_GetError());
-            return;
-        }
+        const auto texture = TextureSystem::getTexture(ren, "res/Menus & Text.png", TextureSystem::IgnoreColorKey::WIN_TEXT);
 
         // Create win text entity
         bagel::Entity winText = bagel::Entity::create();
         winText.addAll(
-            Position{0, 0},
-            Texture{
-                texture,
-                SDL_FRect{winCharacter.winText.x, winCharacter.winText.y},
-                          winCharacter.winText.w, winCharacter.winText.h},
-                SDL_FRect{ 0, 0, WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f }
+            Position{(WINDOW_WIDTH / 2.0f) - (getWinSpriteFrame(winCharacter, 0).w / 1.3f), WINDOW_HEIGHT / 3.0f},
+            winCharacter,
+            Texture{texture},
+            Time{100000},
+            WinMessage{}
         );
     }
 }

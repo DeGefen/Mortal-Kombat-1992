@@ -1,7 +1,9 @@
 #include "mortal_kombat.h"
 
 int main() {
-    mortal_kombat::MK mk;
-    mk.run();
+    while (true) {
+        mortal_kombat::MK mk;
+        mk.run();
+    }
     return 0;
 }
