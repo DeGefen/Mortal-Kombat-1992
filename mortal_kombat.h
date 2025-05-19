@@ -141,7 +141,6 @@ namespace mortal_kombat
             int currFrame = 0; //  Frames spent in the current state
             int freezeFrame = NONE; // Frame to freeze the player
             int freezeFrameDuration = 0; // Duration of the freeze-frame
-            int specialAttackCooldown = 0; // Cooldown for special attacks //todo: add cooldown
 
             /// @brief Resets the player state to default values.
             void reset()
@@ -157,7 +156,6 @@ namespace mortal_kombat
                 currFrame = 0;
                 freezeFrame = NONE;
                 freezeFrameDuration = 0;
-                specialAttackCooldown = 0;
             }
         };
 
