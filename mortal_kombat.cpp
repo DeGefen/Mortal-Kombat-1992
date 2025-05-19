@@ -299,6 +299,7 @@ namespace mortal_kombat
                     if (health.health <= 0 && playerState.state != State::GIDDY_FALL) {
                         playerState.reset();
                         playerState.state = State::GIDDY_FALL;
+                        playerState.isLaying = true;
                         playerState.busyFrames = character.sprite[playerState.state].frameCount;
                         playerState.freezeFrame = playerState.busyFrames - 1;
                         playerState.freezeFrameDuration = 1000;
