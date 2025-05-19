@@ -28,10 +28,11 @@ namespace mortal_kombat
         static constexpr Uint32 ACTION_FRAME_DELAY = 4;
         static constexpr Uint32 INPUT_FRAME_DELAY = 2;
 
-        static constexpr int WINDOW_WIDTH = 800;
-        static constexpr int WINDOW_HEIGHT = 600;
-        static constexpr int WINDOW_SCALE = 100;
+        static constexpr int WINDOW_WIDTH = 800.0f;
+        static constexpr int WINDOW_HEIGHT = 600.0f;
+        static constexpr int WINDOW_SCALE = 100.0f;
 
+        static constexpr int BOUNDARY_WIDTH = 500.0f;
 
         static constexpr float SCALE_CHARACTER = 1.5f;
         static constexpr float CHARACTER_WIDTH = 50;
@@ -51,6 +52,8 @@ namespace mortal_kombat
         static constexpr int PLAYER_2_BASE_X = (WINDOW_WIDTH / 4) * 3 - (CHAR_SQUARE_WIDTH / 2);
         static constexpr int PLAYER_BASE_Y = WINDOW_HEIGHT / 2.0f - 20;
 
+        static constexpr bool LEFT = true;
+        static constexpr bool RIGHT = false;
         // Background constants
         // -------------------------------------------------------
         static constexpr Uint8 BACKGROUND_COLOR_IGNORE_RED = 252;
@@ -100,7 +103,8 @@ namespace mortal_kombat
         struct Collider {
             b2BodyId body = b2_nullBodyId; // Default invalid body ID
             b2ShapeId shape = b2_nullShapeId; // Default invalid shape ID
-            bool isSensor = false; // Whether the collider is a sensor
+            bool isPlayerSensor = false; // Whether the collider is touching a player
+            bool isBoundarySensor = false; // Whether the collider is touching a boundary
         };
 
         /// @brief Player_state component holds the state for the player.
@@ -110,7 +114,7 @@ namespace mortal_kombat
             bool isJumping = false; // Whether the player is jumping
             bool isCrouching = false; // Whether the player is crouching
             bool isAttacking = false; // Whether the player is attacking
-            bool isSpecicalAttacking = false; // Whether the player is attacking with a special attack
+            bool isSpecialAttack = false; // Whether the player is attacking with a special attack
             bool isLaying = false; // Whether the player is laying down
             bool busy = false; // Whether the player is busy
             int playerNumber = 1; // Player number (1 or 2)
@@ -118,18 +122,14 @@ namespace mortal_kombat
             int currFrame = 0; //  Frames spent in the current state
             int freezeFrame = NONE; // Frame to freeze the player
             int freezeFrameDuration = 0; // Duration of the freeze-frame
-            int specialAttackCooldown = 0; // Cooldown for special attacks
-
-            static constexpr bool LEFT = true;
-            static constexpr bool RIGHT = false;
-
+            int specialAttackCooldown = 0; // Cooldown for special attacks //todo: add cooldown
             void reset()
             {
                 state = State::STANCE;
                 isJumping = false;
                 isCrouching = false;
                 isAttacking = false;
-                isSpecicalAttacking = false;
+                isSpecialAttack = false;
                 isLaying = false;
                 busy = false;
                 busyFrames = 0;
@@ -227,11 +227,11 @@ namespace mortal_kombat
 
         /// @brief SpecialAttack component holds the special move type and inputs for the attack.
         struct SpecialAttack {
-            SpecialAttacks type;
-            int attacker;
-            bool direction;
+            SpecialAttacks type = SpecialAttacks::NONE;
+            bool direction = RIGHT;
             int frame = 0;
             int totalFrames = 0;
+            bool explode = false;
 
             static constexpr int SPECIAL_ATTACK_LIFE_TIME = 50;
         };
@@ -244,6 +244,7 @@ namespace mortal_kombat
             char name[10] = {};
             SpriteData<CHARACTER_SPRITE_SIZE> sprite;
             SpriteData<SPECIAL_ATTACK_SPRITE_SIZE> specialAttackSprite;
+            float specialAttackOffset_y{};
 
             // SpecialAttack are times 2 because of the direction
             Input specialAttacks[SPECIAL_ATTACKS_COUNT * 2][COMBO_LENGTH] = {};
@@ -266,6 +267,9 @@ namespace mortal_kombat
             int player1_score = 0;
             int player2_score = 0;
         };
+
+        /// @brief Boundary tag component is used to identify boundary entities.
+        struct Boundary {};
 
         /* =============== Systems =============== */
 
@@ -324,7 +328,7 @@ namespace mortal_kombat
         void AttackSystem(bagel::Entity &eAttack);
 
         /// @brief Manages special attack detection.
-        int SpecialAttackSystem(const bagel::Entity& ePlayer);
+        int SpecialAttackSystem();
 
         /// @brief Handles combat logic, such has damage application, and player hit state.
         /// @param eAttack Entity representing the attack.
@@ -402,19 +406,22 @@ namespace mortal_kombat
         /// @param x,y Position of the entity in the game world.
         /// @param type Type of the attack.
         /// @param playerNumber Player number (1 or 2).
-        /// @param direction = playerState::RIGHT
+        /// @param direction attack direction.
         void createAttack(float x, float y, State type, int playerNumber, bool direction);
 
         /// @brief Creates a special attack entity.
         /// @param x,y Position of the entity in the game world.
         /// @param type Type of the special attack.
+        /// @param playerNumber Player number (1 or 2).
+        /// @param direction attack direction.
+        /// @param character Character data for the player.
         void createSpecialAttack(float x, float y, SpecialAttacks type, int playerNumber,
                                 bool direction, Character& character);
 
         /// @brief Creates a static platform/boundary.
         /// @param x,y Position of the boundary in the game world.
-        /// @param width, height Dimensions of the boundary.
-        static inline void createBoundary(float x, float y, float width, float height);
+        /// @param side boundary side (left or right).
+        void createBoundary(float x, float y, bool side);
 
         /// @brief Creates a game info entity.
         /// @param initialTime Initial time for the game.
@@ -432,17 +439,17 @@ namespace mortal_kombat
                 "Sub-Zero",
                 SUBZERO_SPRITE,
                     SUBZERO_SPECIAL_ATTACK_SPRITE,
+                88,
             {{Inputs::LOW_PUNCH, Inputs::LEFT | Inputs::DIRECTION_RIGHT, Inputs::RIGHT | Inputs::DIRECTION_RIGHT},
-                            {0},
-                            {Inputs::LOW_KICK, Inputs::LEFT, Inputs::RIGHT}}};
+                            {Inputs::LOW_PUNCH, Inputs::RIGHT | Inputs::DIRECTION_LEFT, Inputs::LEFT | Inputs::DIRECTION_LEFT}}};
 
             constexpr static Character LIU_KANG = {
                 "Liu Kang",
                 LIU_KANG_SPRITE,
                     LIU_SPECIAL_ATTACK_SPRITE,
+                72,
             {{Inputs::LOW_PUNCH, Inputs::LEFT | Inputs::DIRECTION_RIGHT, Inputs::RIGHT | Inputs::DIRECTION_RIGHT},
-                        {Inputs::LOW_PUNCH, Inputs::RIGHT | Inputs::DIRECTION_LEFT, Inputs::LEFT | Inputs::DIRECTION_LEFT},
-                            {Inputs::DOWN, Inputs::UP}}};
+                        {Inputs::LOW_PUNCH, Inputs::RIGHT | Inputs::DIRECTION_LEFT, Inputs::LEFT | Inputs::DIRECTION_LEFT}}};
         };
 
 

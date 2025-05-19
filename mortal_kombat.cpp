@@ -57,20 +57,18 @@ namespace mortal_kombat
 
         createPlayer(PLAYER_1_BASE_X, PLAYER_BASE_Y, (Characters::SUBZERO), 1);
         createPlayer(PLAYER_2_BASE_X, PLAYER_BASE_Y, (Characters::LIU_KANG), 2);
+        createBoundary(0, 0, LEFT);
+        createBoundary(WINDOW_WIDTH, 0, RIGHT);
 
         while (true)
         {
             frameStart = SDL_GetTicks();
 
-            if (frame_count % INPUT_FRAME_DELAY == 0)
-            {
-                InputSystem();
-            }
-            if (++frame_count % ACTION_FRAME_DELAY == 0)
-            {
-                PlayerSystem();
-            }
+            if (frame_count % INPUT_FRAME_DELAY == 0) InputSystem();
+            if (++frame_count % ACTION_FRAME_DELAY == 0) PlayerSystem();
+            ClockSystem();
             CollisionSystem();
+            SpecialAttackSystem();
             MovementSystem();
             RenderSystem();
             AttackDecaySystem();
@@ -117,51 +115,58 @@ namespace mortal_kombat
                     {
                     case State::WALK_BACKWARDS:
                         movement.vx = WALK_SPEED_BACKWARDS
-                                        * (playerState.direction == PlayerState::LEFT ? 1.0f : -1.0f);
+                                        * (playerState.direction == LEFT ? 1.0f : -1.0f)
+                                        * (collider.isBoundarySensor ? 0.0f : 1.0f);
+
                         break;
                     case State::WALK_FORWARDS:
                         movement.vx = WALK_SPEED_FORWARDS
-                                        * (playerState.direction == PlayerState::LEFT ? -1.0f : 1.0f)
-                                        * (collider.isSensor ? 0.0f : 1.0f);
+                                        * (playerState.direction == LEFT ? -1.0f : 1.0f)
+                                        * (collider.isPlayerSensor ? 0.0f : 1.0f);
                         break;
                     case State::KICKBACK_TORSO_HIT:
                         movement.vx = KICKBACK_SPEED
-                                        * (playerState.direction == PlayerState::LEFT ? 1.0f : -1.0f);
+                                        * (playerState.direction == LEFT ? 1.0f : -1.0f);
                         break;
                     case State::FALL:
                     case State::UPPERCUT_HIT:
                         if (playerState.currFrame < character.sprite[playerState.state].frameCount / 2)
                         {
                             movement.vx = FALL_SPEED
-                                        * (playerState.direction == PlayerState::LEFT ? 1.0f : -1.0f);
+                                        * (playerState.direction == LEFT ? 1.0f : -1.0f);
                             break;
                         }
                     default:
                         movement.reset();
                         break;
                     }
+                }
 
-                    position.x += movement.vx;
-                    position.y += movement.vy;
+                position.x += movement.vx;
+                position.y += movement.vy;
 
-                    if (playerState.isCrouching)
-                    {
-                        b2Body_SetTransform(
+                if (entity.has<PlayerState>() && entity.get<PlayerState>().isCrouching)
+                {
+                    b2Body_SetTransform(
                             collider.body,
                             getPosition(position.x, position.y - (CHARACTER_HEIGHT/2.0f)),
                             b2Rot_identity);
-                    }
-                    else
-                    {
-                        b2Body_SetTransform(
-                                collider.body,
-                                getPosition(position),
-                                b2Rot_identity);
-                    }
-                    continue;
                 }
-                position.x += movement.vx;
-                position.y += movement.vy;
+                else if (entity.has<SpecialAttack>())
+                {
+                    auto& sprite = entity.get<Character>().specialAttackSprite[entity.get<SpecialAttack>().type];
+                    b2Body_SetTransform(
+                            collider.body,
+                            getPosition(position.x - sprite.w, position.y - entity.get<Character>().specialAttackOffset_y + (sprite.h / 2.0f)),
+                            b2Rot_identity);
+                }
+                else
+                {
+                    b2Body_SetTransform(
+                              collider.body,
+                              getPosition(position),
+                              b2Rot_identity);
+                }
             }
         }
     }
@@ -203,7 +208,7 @@ namespace mortal_kombat
                     auto& playerState = entity.get<PlayerState>();
                     auto& character = entity.get<Character>();
 
-                    flipMode = (playerState.direction == PlayerState::LEFT) ?
+                    flipMode = (playerState.direction == LEFT) ?
                         SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
 
                     const int frame = (playerState.state == State::WALK_BACKWARDS)
@@ -217,7 +222,7 @@ namespace mortal_kombat
                 {
                     auto& specialAttack = entity.get<SpecialAttack>();
                     auto& character = entity.get<Character>();
-                    flipMode = (specialAttack.direction == PlayerState::LEFT) ?
+                    flipMode = (specialAttack.direction == LEFT) ?
                         SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
 
                     texture.srcRect = MK::getSpriteFrame(character, specialAttack.type, specialAttack.frame);
@@ -429,7 +434,7 @@ namespace mortal_kombat
                         playerState.freezeFrameDuration = freezeFrameDuration;
                         playerState.isCrouching = crouching;
                         playerState.isAttacking = attack;
-                        playerState.isSpecicalAttacking = special;
+                        playerState.isSpecialAttack = special;
                         playerState.specialAttackCooldown = special ? playerState.busyFrames * 2 : 0;
                         playerState.busy = busy;
                     }
@@ -453,15 +458,15 @@ namespace mortal_kombat
                         ++playerState.currFrame;
 
                     // Handels when player is attacking
-                    if (playerState.busy && playerState.isAttacking
-                        && (playerState.currFrame % character.sprite[playerState.state].frameCount) == character.sprite[playerState.state].frameCount / 3 )
+                    if (playerState.busy && playerState.isAttacking)
                     {
                         auto& [x, y] = entity.get<Position>();
-                        if (playerState.isSpecicalAttacking)
-                            createSpecialAttack( x, y, SpecialAttacks::FIREBALL,
+                        if (playerState.isSpecialAttack
+                            && (playerState.currFrame % character.sprite[playerState.state].frameCount) == character.sprite[playerState.state].frameCount / 2)
+                            createSpecialAttack(x, y, SpecialAttacks::FIREBALL,
                                       playerState.playerNumber, playerState.direction, character);
-                        else
-                            createAttack( x, y, playerState.state,
+                        else if ((playerState.currFrame % character.sprite[playerState.state].frameCount) == character.sprite[playerState.state].frameCount / 3)
+                            createAttack(x, y, playerState.state,
                                       playerState.playerNumber, playerState.direction);
                     }
                 }
@@ -490,7 +495,7 @@ namespace mortal_kombat
 
                 inputs++;
 
-                inputs[0] |= (playerState.direction == PlayerState::LEFT) ?
+                inputs[0] |= (playerState.direction == LEFT) ?
                                                 Inputs::DIRECTION_LEFT : Inputs::DIRECTION_RIGHT;
                 inputs[0] |= (playerState.isJumping) ?
                                                 Inputs::JUMPING : 0;
@@ -535,7 +540,6 @@ namespace mortal_kombat
             .set<PlayerState>()
             .build();
 
-
         b2World_Step(boxWorld, BOX2D_STEP, 4);
 
         const auto se = b2World_GetSensorEvents(boxWorld);
@@ -553,7 +557,10 @@ namespace mortal_kombat
             bagel::Entity eSensor = bagel::Entity{(*e_b)};
 
             if (eBody.test(maskPlayer) && eSensor.test(maskPlayer))
-                eBody.get<Collider>().isSensor = true;
+                eBody.get<Collider>().isPlayerSensor = true;
+
+            if (eBody.test(maskPlayer) && eSensor.has<Boundary>())
+                eBody.get<Collider>().isBoundarySensor = true;
 
             if (eSensor.test(maskAttack) && eBody.test(maskPlayer)
                 && eSensor.get<Attack>().attacker != eBody.get<PlayerState>().playerNumber)
@@ -574,7 +581,10 @@ namespace mortal_kombat
             bagel::Entity eSensor = bagel::Entity{(*e_b)};
 
             if (eBody.test(maskPlayer) && eSensor.test(maskPlayer))
-                eBody.get<Collider>().isSensor = false;
+                eBody.get<Collider>().isPlayerSensor = false;
+
+            if (eBody.test(maskPlayer) && eSensor.has<Boundary>())
+                eBody.get<Collider>().isBoundarySensor = false;
         }
     }
 
@@ -613,6 +623,7 @@ namespace mortal_kombat
         {
             if (bagel::Entity entity{e}; entity.test(mask))
             {
+                --entity.get<Time>().time;
             }
         }
     }
@@ -634,7 +645,6 @@ namespace mortal_kombat
         }
 
         bool crouching = playerState.isCrouching;
-
         switch (attack.type)
         {
             case State::LOW_PUNCH:
@@ -701,8 +711,21 @@ namespace mortal_kombat
                 playerState.state = crouching ? State::CROUCH_HIT : State::TORSO_HIT;
                 playerState.busyFrames = character.sprite[playerState.state].frameCount;
                 playerState.freezeFrame = playerState.busyFrames - 1;
-                playerState.freezeFrameDuration = 2;
                 playerState.busy = true;
+                break;
+            case State::SPECIAL_1:
+            case State::SPECIAL_2:
+            case State::SPECIAL_3:
+                health.health -= 10;
+                playerState.reset();
+                playerState.state = crouching ? State::CROUCH_HIT : State::TORSO_HIT;
+                playerState.busyFrames = character.sprite[playerState.state].frameCount;
+                playerState.freezeFrame = playerState.busyFrames - 1;
+                playerState.busy = true;
+                if (eAttack.has<SpecialAttack>())
+                {
+                    eAttack.get<SpecialAttack>().explode = true;
+                }
                 break;
             default:
         }
@@ -716,47 +739,55 @@ namespace mortal_kombat
     void MK::AttackDecaySystem() {
         static const bagel::Mask mask = bagel::MaskBuilder()
             .set<Collider>()
+            .set<Attack>()
             .set<Time>()
             .build();
 
         for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
             if (bagel::Entity entity{e}; entity.test(mask)) {
-                if (entity.has<Attack>()) {
-                    auto& collider = entity.get<Collider>();
+                auto& collider = entity.get<Collider>();
+                auto& time = entity.get<Time>();
 
-                    // Only delete the user data if the body is valid
+                if (time.time <= 0) {
                     if (b2Body_IsValid(collider.body)) {
                         const auto* e_p = static_cast<bagel::ent_type*>(b2Body_GetUserData(collider.body));
                         b2DestroyBody(collider.body);
                         delete e_p;
                     }
 
-                    // Mark the body as invalid after deletion
                     collider.body = b2_nullBodyId;
-
                     bagel::World::destroyEntity(e);
-                }
-                else if (entity.has<SpecialAttack>()) {
-                    auto& collider = entity.get<Collider>();
-                    auto& time = entity.get<Time>();
-
-                    if (++(time.time) > SpecialAttack::SPECIAL_ATTACK_LIFE_TIME) {
-                        if (b2Body_IsValid(collider.body)) {
-                            const auto* e_p = static_cast<bagel::ent_type*>(b2Body_GetUserData(collider.body));
-                            b2DestroyBody(collider.body);
-                            delete e_p;
-                        }
-
-                        collider.body = b2_nullBodyId;
-                        bagel::World::destroyEntity(e);
-                    }
                 }
             }
         }
     }
 
-    int MK::SpecialAttackSystem(const bagel::Entity& ePlayer) {
-        return 0;
+    int MK::SpecialAttackSystem() {
+        static const bagel::Mask mask = bagel::MaskBuilder()
+            .set<SpecialAttack>()
+            .build();
+
+        for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
+            if (bagel::Entity entity{e}; entity.test(mask))
+            {
+                if (entity.get<SpecialAttack>().explode)
+                {
+                    auto& spritePrev = entity.get<Character>().specialAttackSprite[entity.get<SpecialAttack>().type];
+                    auto& spriteNext = entity.get<Character>().specialAttackSprite[SpecialAttacks::EXPLOSION];
+                    entity.get<Movement>().reset();
+                    entity.get<Position>().y -= ((spriteNext.h - spritePrev.h) / 2.0f) * SCALE_CHARACTER;
+                    if (entity.get<SpecialAttack>().direction == RIGHT)
+                    {
+                        entity.get<Position>().x += (spriteNext.w / 3.0f) * SCALE_CHARACTER;
+                    }
+                    entity.get<SpecialAttack>().type = SpecialAttacks::EXPLOSION;
+                    entity.get<SpecialAttack>().frame = 0;
+                    entity.get<SpecialAttack>().totalFrames = spriteNext.frameCount - 1;
+                    entity.get<SpecialAttack>().explode = false;
+                    entity.get<Time>().time = 4;
+                }
+            }
+        }
     }
 
     void MK::createPlayer(float x, float y, Character character, int playerNumber) {
@@ -782,7 +813,7 @@ namespace mortal_kombat
             // Add components to the entity
             PlayerState playerState;
             playerState.playerNumber = playerNumber;
-            playerState.direction = (playerNumber == 1) ? PlayerState::RIGHT : PlayerState::LEFT;
+            playerState.direction = (playerNumber == 1) ? RIGHT : LEFT;
 
             bagel::Entity entity = bagel::Entity::create();
             entity.addAll(Position{x, y},
@@ -810,33 +841,33 @@ namespace mortal_kombat
                 case State::HIGH_PUNCH:
                     width = 70.0f;
                     height = 40.0f;
-                    xOffset = width / 2.0f * (direction == PlayerState::LEFT ? -1.0f : 1.0f);
+                    xOffset = width / 2.0f * (direction == LEFT ? -1.0f : 1.0f);
                     yOffset = 40.0f;
                     break;
                 case State::LOW_KICK:
                 case State::HIGH_KICK:
                     width = 95.0f;
                     height = 40.0f;
-                    xOffset = width / 2.0f * (direction == PlayerState::LEFT ? -1.0f : 1.0f);
+                    xOffset = width / 2.0f * (direction == LEFT ? -1.0f : 1.0f);
                     yOffset = 0.0f;
                     break;
                 case State::HIGH_SWEEP_KICK:
                     width = 95.0f;
                     height = 40.0f;
-                    xOffset = width / 2.0f * (direction == PlayerState::LEFT ? -1.0f : 1.0f);
+                    xOffset = width / 2.0f * (direction == LEFT ? -1.0f : 1.0f);
                     yOffset = 40.0f;
                     break;
                 case State::CROUCH_KICK:
                 case State::LOW_SWEEP_KICK:
                     width = 85.0f;
                     height = 40.0f;
-                    xOffset = width / 2.0f * (direction == PlayerState::LEFT ? -1.0f : 1.0f);
+                    xOffset = width / 2.0f * (direction == LEFT ? -1.0f : 1.0f);
                     yOffset = -40.0f;
                     break;
                 case State::UPPERCUT:
                     width = 50.0f;
                     height = 40.0f;
-                    xOffset = width / 2.0f * (direction == PlayerState::LEFT ? -1.0f : 1.0f);
+                    xOffset = width / 2.0f * (direction == LEFT ? -1.0f : 1.0f);
                     yOffset = 40.0f;
                     break;
                 default: // Type is not a valid attack
@@ -860,10 +891,12 @@ namespace mortal_kombat
             bagel::Entity entity = bagel::Entity::create();
             entity.addAll(Position{x, y},
                           Collider{body, shape},
-                          Attack{type, playerNumber});
+                          Attack{type, playerNumber},
+                          Time{Attack::ATTACK_LIFE_TIME});
 
             b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
         }
+
 
         void MK::createSpecialAttack(float x, float y, SpecialAttacks type, int playerNumber,
                                     bool direction, Character& character)
@@ -874,36 +907,73 @@ namespace mortal_kombat
 
             b2BodyDef bodyDef = b2DefaultBodyDef();
             bodyDef.type = b2_kinematicBody;
-            bodyDef.position= getPosition(x, y);
+            bodyDef.position= getPosition(x, y + CHARACTER_HEIGHT / 2.0f);
 
             b2ShapeDef shapeDef = b2DefaultShapeDef();
             shapeDef.enableSensorEvents = true;
             shapeDef.isSensor = true;
 
-            b2Polygon boxShape = b2MakeBox((character.specialAttackSprite[SpecialAttacks::FIREBALL].h / 2.0f) / WINDOW_SCALE,
-                                         (character.specialAttackSprite[SpecialAttacks::FIREBALL].w / 2.0f) / WINDOW_SCALE);
+            b2Polygon boxShape = b2MakeBox((character.specialAttackSprite[type].h / 2.0f) / WINDOW_SCALE,
+                                         (character.specialAttackSprite[type].w / 2.0f) / WINDOW_SCALE);
 
             b2BodyId body = b2CreateBody(boxWorld, &bodyDef);
             b2ShapeId shape = b2CreatePolygonShape(body, &shapeDef, &boxShape);
 
+            float width = 0.0f;
+            float height = 0.0f;
+            float xOffset = 0.0f;
+            float yOffset = 0.0f;
+
+            State state;
+            switch (type)
+            {
+                case SpecialAttacks::FIREBALL:
+                    state = State::SPECIAL_1;
+                    break;
+                    // add more special attacks here
+                default:
+                    return; // Invalid special attack type
+            }
+
             // Add components to the entity
             bagel::Entity entity = bagel::Entity::create();
-            entity.addAll(Position{x + (direction == PlayerState::LEFT) ? 100.0f: -100, y + 120},
-                       Movement{(direction == PlayerState::LEFT) ? -15.0f : 15.0f, 0},
+            entity.addAll(Position{x + ((CHAR_SQUARE_WIDTH / 2.0f) * SCALE_CHARACTER),
+                                    y + ((character.specialAttackOffset_y - (character.specialAttackSprite[type].h / 2.0f)) * SCALE_CHARACTER)},
+                       Movement{(direction == LEFT) ? -15.0f : 15.0f, 0},
                        Collider{body, shape},
                        Texture{texture},
-                       SpecialAttack{type, playerNumber, direction},
+                       Attack{state, playerNumber},
+                       SpecialAttack{type, direction},
                        character,
-                       Time{});
+                       Time{SpecialAttack::SPECIAL_ATTACK_LIFE_TIME});
 
             b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
         }
 
-        void MK::createBoundary(float x, float y, float width, float height) {
+        void MK::createBoundary(float x, float y, bool side) {
+            b2BodyDef bodyDef = b2DefaultBodyDef();
+            bodyDef.type = b2_staticBody;
+            if (side == LEFT)
+            {
+                bodyDef.position= getPosition(x - BOUNDARY_WIDTH / 1.2f, y);
+            }
+
+            b2ShapeDef shapeDef = b2DefaultShapeDef();
+            shapeDef.enableSensorEvents = true;
+            shapeDef.isSensor = true;
+
+            b2Polygon boxShape = b2MakeBox(BOUNDARY_WIDTH / 2.0f / WINDOW_SCALE,
+                                            WINDOW_HEIGHT / 2.0f / WINDOW_SCALE);
+
+            b2BodyId body = b2CreateBody(boxWorld, &bodyDef);
+            b2ShapeId shape = b2CreatePolygonShape(body, &shapeDef, &boxShape);
+
             bagel::Entity entity = bagel::Entity::create();
 
-            entity.addAll(Position{x, y},
-                          Collider{});
+            entity.addAll(Collider{body, shape},
+                          Boundary{});
+
+            b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
         }
 
         void MK::createGameInfo(float initialTime) {

@@ -57,7 +57,7 @@ namespace mortal_kombat
     /// @brief Enum AttackType hold the different special attacks types.
     enum class SpecialAttacks
     {
-        FIREBALL, EXPLOSION
+        FIREBALL, EXPLOSION, NONE
     };
 
     static constexpr int CHARACTER_SPRITE_SIZE = 46;
@@ -91,6 +91,7 @@ namespace mortal_kombat
         constexpr SpriteInfo& operator[](SpecialAttacks s) {
             return sprite[static_cast<int>(s)];
         }
+
 
     private:
         std::array<SpriteInfo, SIZE> sprite;
@@ -212,17 +213,3 @@ namespace mortal_kombat
     static constexpr SpriteData<SPECIAL_ATTACK_SPRITE_SIZE> SUBZERO_SPECIAL_ATTACK_SPRITE(SUBZERO_SPECIAL_SPRITE_ARRAY);
     static constexpr SpriteData<SPECIAL_ATTACK_SPRITE_SIZE> LIU_SPECIAL_ATTACK_SPRITE(LIU_KANG_SPECIAL_SPRITE_ARRAY);
 };
-
-
-// printf("UP %d\n", (inputs.history[inputs.index] & Inputs::UP) >> 0);
-// printf("DOWN %d\n", (inputs.history[inputs.index] & Inputs::DOWN) >> 1);
-// printf("LEFT %d\n", (inputs.history[inputs.index] & Inputs::LEFT) >> 2);
-// printf("RIGHT %d\n", (inputs.history[inputs.index] & Inputs::RIGHT) >> 3);
-// printf("LOW_PUNCH %d\n", (inputs.history[inputs.index] & Inputs::LOW_PUNCH) >> 4);
-// printf("HIGH_PUNCH %d\n", (inputs.history[inputs.index] & Inputs::HIGH_PUNCH) >> 5);
-// printf("LOW_KICK %d\n", (inputs.history[inputs.index] & Inputs::LOW_KICK) >> 6);
-// printf("HIGH_KICK %d\n", (inputs.history[inputs.index] & Inputs::HIGH_KICK) >> 7);
-// printf("BLOCK %d\n", (inputs.history[inputs.index] & Inputs::BLOCK) >> 8);
-// printf("DIRECTION_RIGHT %d\n", (inputs.history[inputs.index] & Inputs::DIRECTION_RIGHT) >> 9);
-// printf("DIRECTION_LEFT %d\n", (inputs.history[inputs.index] & Inputs::DIRECTION_LEFT) >> 10);
-// printf("JUMPING %d\n", (inputs.history[inputs.index] & Inputs::JUMPING) >> 11);
