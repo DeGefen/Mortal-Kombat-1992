@@ -47,6 +47,8 @@ namespace mortal_kombat
         boxWorld = b2CreateWorld(&worldDef);
     }
 
+    // ------------------------------- Game Loop -------------------------------
+
     void MK::run()
     {
 
@@ -55,10 +57,12 @@ namespace mortal_kombat
 
         createBackground("res/Background.png");
 
-        createPlayer(PLAYER_1_BASE_X, PLAYER_BASE_Y, (Characters::SUBZERO), 1);
-        createPlayer(PLAYER_2_BASE_X, PLAYER_BASE_Y, (Characters::LIU_KANG), 2);
         createBoundary(0, 0, LEFT);
         createBoundary(WINDOW_WIDTH, 0, RIGHT);
+        bagel::Entity player1 = createPlayer(PLAYER_1_BASE_X, PLAYER_BASE_Y, Characters::SUBZERO, 1);
+        bagel::Entity player2 = createPlayer(PLAYER_2_BASE_X, PLAYER_BASE_Y, Characters::LIU_KANG, 2);
+
+        createBar(player1, player2);
 
         while (true)
         {
@@ -71,6 +75,7 @@ namespace mortal_kombat
             SpecialAttackSystem();
             MovementSystem();
             RenderSystem();
+            HealthBarSystem();
             AttackDecaySystem();
 
             frameTime = SDL_GetTicks() - frameStart;
@@ -79,6 +84,8 @@ namespace mortal_kombat
             }
         }
     }
+
+    // ------------------------------- Systems -------------------------------
 
     void MK::MovementSystem()
     {
@@ -589,17 +596,40 @@ namespace mortal_kombat
     }
 
     void MK::MatchSystem() {
-        static const bagel::Mask mask = bagel::MaskBuilder()
-            .set<Health>()
-            .build();
-
-        for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id)
-        {
-            if (bagel::Entity entity{e}; entity.test(mask))
-            {
-
-            }
-        }
+        // static const bagel::Mask mask = bagel::MaskBuilder()
+        //     .set<Health>()
+        //     .set<Character>()
+        //     .build();
+        //
+        // for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id)
+        // {
+        //     if (bagel::Entity entity{e}; entity.test(mask)) {
+        //         auto& health = entity.get<Health>();
+        //         auto& character = entity.get<Character>();
+        //
+        //         if (health.health <= 0) {
+        //             // Create win message
+        //             std::string winText = std::string(character.name) + " wins!";
+        //             SDL_Color white = {255, 255, 255, 255};
+        //
+        //             SDL_Texture* textTex = renderText(ren, winText, white, yourTTFfont);
+        //             if (!textTex) continue;
+        //
+        //             bagel::Entity msg = bagel::Entity::create();
+        //             msg.addAll(
+        //                 Position{WINDOW_WIDTH / 2.0f - 100, WINDOW_HEIGHT / 4.0f},
+        //                 Texture{
+        //                     textTex,
+        //                     {0, 0, 300, 50},               // Source size — match your text size
+        //                     {WINDOW_WIDTH / 2.0f - 100, WINDOW_HEIGHT / 4.0f, 300, 50}
+        //                 },
+        //                 WinMessage{winText}
+        //             );
+        //
+        //             break; // stop once one winner is declared
+        //         }
+        //     }
+        // }
     }
 
     void MK::WinSystem() {
@@ -790,7 +820,62 @@ namespace mortal_kombat
         }
     }
 
-    void MK::createPlayer(float x, float y, Character character, int playerNumber) {
+    void MK::HealthBarSystem() {
+        static const bagel::Mask mask = bagel::MaskBuilder()
+            .set<HealthBarReference>()
+            .set<DamageVisual>()
+            .set<Texture>()
+            .set<Position>()
+            .build();
+
+        for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
+            if (bagel::Entity entity{e}; entity.test(mask)) {
+
+                // Use HealthBarReference to access actual player health
+                auto& reference = entity.get<HealthBarReference>();
+                if (reference.target.id == -1) continue;
+
+                bagel::Entity player = bagel::Entity{reference.target};
+                auto& health = player.get<Health>();
+
+                // Continue as usual
+                auto& damage = entity.get<DamageVisual>();
+                auto& texture = entity.get<Texture>();
+                auto& pos = entity.get<Position>();
+
+                float ratio = std::max(0.0f, health.health / health.max_health);
+
+                // Smooth trailing damage effect
+                const float TRAIL_SPEED = 0.5f;
+                if (damage.trailingHealth > health.health) {
+                    damage.trailingHealth -= TRAIL_SPEED;
+                    if (damage.trailingHealth < health.health)
+                        damage.trailingHealth = health.health;
+                }
+
+                // float trailRatio = std::max(0.0f, damage.trailingHealth / health.max_health);
+
+                // // Red bar (trailing)
+                // SDL_FRect redRect = {
+                //     pos.x, pos.y,
+                //     250.0f * trailRatio,
+                //     texture.rect.h
+                // };
+                // SDL_SetRenderDrawColor(ren, 200, 0, 0, 255);
+                // SDL_RenderFillRect(ren, &redRect);
+
+                // Green bar (current health)
+                texture.rect.w = 250.0f * ratio;
+            }
+        }
+    }
+
+    // ------------------------------- Helper Functions -------------------------------
+
+
+    // ------------------------------- Create Functions -------------------------------
+
+    bagel::ent_type MK::createPlayer(float x, float y, Character character, int playerNumber) {
 
             // Construct the texture path
             std::string texturePath = "res/" + std::string(character.name) + ".png";
@@ -826,6 +911,7 @@ namespace mortal_kombat
                           Health{100, 100});
 
             b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
+            return entity.entity();
         }
 
         void MK::createAttack(float x, float y, State type, int playerNumber, bool direction) {
@@ -976,15 +1062,15 @@ namespace mortal_kombat
             b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
         }
 
-        void MK::createGameInfo(float initialTime) {
-            bagel::Entity entity = bagel::Entity::create();
+    void MK::createGameInfo(float initialTime) {
+        bagel::Entity entity = bagel::Entity::create();
 
-            entity.addAll(Time{initialTime},
-                          Score{0, 0, 0},
-                          Position{0, 0},
-                          Texture{nullptr, SDL_FRect{0, 0, 100, 50}});
+        entity.addAll(Time{initialTime},
+                      Score{0, 0, 0},
+                      Position{0, 0},
+                      Texture{nullptr, SDL_FRect{0, 0, 100, 50}});
 
-        }
+    }
 
     void MK::createBackground(std::string backgroundPath) {
 
@@ -1033,4 +1119,169 @@ namespace mortal_kombat
             }
         );
     }
+
+    void MK::createBar(bagel::Entity player1, bagel::Entity player2) {
+
+        // Dimensions of the green health bar in the texture
+        SDL_FRect GREEN_BAR_SRC = { 5406, 49, 163, 12 };  // Green (top bar)
+        SDL_FRect RED_BAR_SRC   = { 5406, 63, 163, 12 }; // Red  (bottom bar)
+        SDL_FRect NAME_BAR_SRC   = { 5406, 98, 163, 12 }; // Name bar
+
+        // Bar dimensions
+        const float BAR_WIDTH = 250.0f;
+        const float BAR_HEIGHT = 18.0f;
+
+        // Positioning constants
+        const float OFFSET_Y = 10.0f;
+        const float MARGIN = 50.0f;
+        const float xRight = WINDOW_WIDTH - BAR_WIDTH - MARGIN;
+
+        // Color key for the bar texture
+        const Uint8 COLOR_KEY_DAMAGE_BAR_RED = 82;
+        const Uint8 COLOR_KEY_DAMAGE_BAR_GREEN = 1;
+        const Uint8 COLOR_KEY_DAMAGE_BAR_BLUE = 1;
+
+        // Color key for the bar texture
+        const Uint8 COLOR_KEY_NAME_BAR_RED = 0;
+        const Uint8 COLOR_KEY_NAME_BAR_GREEN = 165;
+        const Uint8 COLOR_KEY_NAME_BAR_BLUE = 0;
+
+        // Load the image as a surface
+        SDL_Surface* original = IMG_Load("res/Menus & Text.png");
+        if (!original) {
+            SDL_Log("Failed to load bar image: %s", SDL_GetError());
+            return;
+        }
+
+        // Duplicate the surface for damage bar
+        SDL_Surface* surfaceDamage = SDL_DuplicateSurface(original);
+        if (!surfaceDamage) {
+            SDL_Log("Failed to duplicate surface for damage bar: %s", SDL_GetError());
+            SDL_DestroySurface(original);
+            return;
+        }
+
+        // Duplicate the surface for name bar
+        SDL_Surface* surfaceName = SDL_DuplicateSurface(original);
+        if (!surfaceName) {
+            SDL_Log("Failed to duplicate surface for name bar: %s", SDL_GetError());
+            SDL_DestroySurface(original);
+            SDL_DestroySurface(surfaceDamage);
+            return;
+        }
+
+        // Free the original
+        SDL_DestroySurface(original);
+
+        // Set the color key for the damage bar surface
+        const SDL_PixelFormatDetails *damage_fmt = SDL_GetPixelFormatDetails(surfaceDamage->format);
+
+        SDL_SetSurfaceColorKey(surfaceDamage, true, SDL_MapRGB(damage_fmt, nullptr,
+                                                      COLOR_KEY_DAMAGE_BAR_RED,
+                                                      COLOR_KEY_DAMAGE_BAR_GREEN,
+                                                      COLOR_KEY_DAMAGE_BAR_BLUE));
+
+        // Set the color key for the name bar surface
+        const SDL_PixelFormatDetails *name_fmt = SDL_GetPixelFormatDetails(surfaceDamage->format);
+
+        SDL_SetSurfaceColorKey(surfaceName, true, SDL_MapRGB(name_fmt, nullptr,
+                                                      COLOR_KEY_NAME_BAR_RED,
+                                                      COLOR_KEY_NAME_BAR_GREEN,
+                                                      COLOR_KEY_NAME_BAR_BLUE));
+
+        // Create textures
+        SDL_Texture* barTexture = SDL_CreateTextureFromSurface(ren, surfaceDamage);
+        if (!barTexture) {
+            SDL_Log("Failed to create damage bar texture: %s", SDL_GetError());
+            // Cleanup
+            SDL_DestroySurface(surfaceDamage);
+            SDL_DestroySurface(surfaceName);
+            return;
+        }
+
+        SDL_Texture* nameTexture = SDL_CreateTextureFromSurface(ren, surfaceName);
+        if (!nameTexture) {
+            SDL_Log("Failed to create name bar texture: %s", SDL_GetError());
+            SDL_DestroySurface(surfaceDamage);
+            SDL_DestroySurface(surfaceName);
+            SDL_DestroyTexture(barTexture);
+            return;
+        }
+
+        // Cleanup surfaces after texture creation
+        SDL_DestroySurface(surfaceDamage);
+        SDL_DestroySurface(surfaceName);
+
+        // Player 1 - RED background bar
+        bagel::Entity red1 = bagel::Entity::create();
+        red1.addAll(
+            Position{ MARGIN, OFFSET_Y },
+            Texture{
+                barTexture,
+                RED_BAR_SRC,
+                SDL_FRect{ MARGIN, OFFSET_Y, BAR_WIDTH, BAR_HEIGHT }
+            }
+        );
+
+        // Player 1 - GREEN health bar
+        bagel::Entity green1 = bagel::Entity::create();
+        green1.addAll(
+            Position{ MARGIN, OFFSET_Y },
+            Texture{
+                barTexture,
+                GREEN_BAR_SRC,
+                SDL_FRect{ MARGIN, OFFSET_Y, BAR_WIDTH, BAR_HEIGHT }
+            },
+            DamageVisual{100.0f},
+            HealthBarReference{ player1.entity() }
+        );
+
+        // Player 1 - Player's name
+        bagel::Entity name1 = bagel::Entity::create();
+        name1.addAll(
+            Position{ MARGIN, OFFSET_Y },
+            Texture{
+                nameTexture,
+                NAME_BAR_SRC,
+                SDL_FRect{ MARGIN, OFFSET_Y, BAR_WIDTH, BAR_HEIGHT }
+            }
+        );
+
+        // Player 2 - RED background bar
+        bagel::Entity red2 = bagel::Entity::create();
+        red2.addAll(
+            Position{ xRight, OFFSET_Y },
+            Texture{
+                barTexture,
+                RED_BAR_SRC,
+                SDL_FRect{ xRight, OFFSET_Y, BAR_WIDTH, BAR_HEIGHT }
+            }
+        );
+
+        // Player 2 - GREEN health bar
+        bagel::Entity green2 = bagel::Entity::create();
+        green2.addAll(
+            Position{ xRight, OFFSET_Y },
+            Texture{
+                barTexture,
+                GREEN_BAR_SRC,
+                SDL_FRect{ xRight, OFFSET_Y, BAR_WIDTH, BAR_HEIGHT }
+            },
+            DamageVisual{100.0f},
+            HealthBarReference{ player2.entity() }
+        );
+
+        // Player 2 - Player's name
+        bagel::Entity name2 = bagel::Entity::create();
+        name2.addAll(
+            Position{ xRight, OFFSET_Y },
+            Texture{
+                nameTexture,
+                NAME_BAR_SRC,
+                SDL_FRect{ xRight, OFFSET_Y, BAR_WIDTH, BAR_HEIGHT }
+            }
+        );
+    }
+
+
 }
