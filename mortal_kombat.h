@@ -79,7 +79,7 @@ namespace mortal_kombat
 
         void prepareBoxWorld();
 
-        /* =============== components =============== */
+        /* =============== Components =============== */
         /// @brief Position component holds the x and y coordinates of an object.
         struct Position {
             float x = 0.0f, y = 0.0f;
@@ -242,12 +242,14 @@ namespace mortal_kombat
             static constexpr int COMBO_LENGTH = 3;
 
             char name[10] = {};
-            SpriteData<CHARACTER_SPRITE_SIZE> sprite;
-            SpriteData<SPECIAL_ATTACK_SPRITE_SIZE> specialAttackSprite;
+            SpriteData<State, CHARACTER_SPRITE_SIZE> sprite;
+            SpriteData<SpecialAttacks, SPECIAL_ATTACK_SPRITE_SIZE> specialAttackSprite; // Updated type
             float specialAttackOffset_y{};
-
             // SpecialAttack are times 2 because of the direction
             Input specialAttacks[SPECIAL_ATTACKS_COUNT * 2][COMBO_LENGTH] = {};
+            SDL_FRect leftBarNameSource;
+            SDL_FRect rightBarNameSource;
+            SpriteInfo winText;
         };
 
         /// @brief Health component holds the maximum and current health of the player.
@@ -276,6 +278,7 @@ namespace mortal_kombat
             float trailingHealth = 100.0f;  // Initially equal to max health
         };
 
+        /// @brief HealthBarReference component holds a reference to the actual player entity.
         struct HealthBarReference {
             bagel::ent_type target;  // Reference to actual player entity
         };
@@ -320,6 +323,8 @@ namespace mortal_kombat
         static SDL_FRect getSpriteFrame(const Character& character, SpecialAttacks action,
                                             int frame);
 
+        SDL_FRect getWinSpriteFrame(const Character &character, int frame);
+
         /// @brief Manages player-specific logic, such as state and character updates.
         void PlayerSystem();
 
@@ -342,7 +347,7 @@ namespace mortal_kombat
         void AttackSystem(bagel::Entity &eAttack);
 
         /// @brief Manages special attack detection.
-        int SpecialAttackSystem();
+        void SpecialAttackSystem();
 
         /// @brief Handles combat logic, such has damage application, and player hit state.
         /// @param eAttack Entity representing the attack.
@@ -452,22 +457,29 @@ namespace mortal_kombat
         struct Characters
         {
             constexpr static Character SUBZERO = {
-                "Sub-Zero",
-                SUBZERO_SPRITE,
-                    SUBZERO_SPECIAL_ATTACK_SPRITE,
-                88,
-            {{Inputs::LOW_PUNCH, Inputs::LEFT | Inputs::DIRECTION_RIGHT, Inputs::RIGHT | Inputs::DIRECTION_RIGHT},
-                            {Inputs::LOW_PUNCH, Inputs::RIGHT | Inputs::DIRECTION_LEFT, Inputs::LEFT | Inputs::DIRECTION_LEFT}}};
+                .name = "Sub-Zero",
+                .sprite = SUBZERO_SPRITE,
+                .specialAttackSprite = SUBZERO_SPECIAL_ATTACK_SPRITE,
+                .specialAttackOffset_y = 88,
+                .specialAttacks = {{Inputs::LOW_PUNCH, Inputs::LEFT | Inputs::DIRECTION_RIGHT, Inputs::RIGHT | Inputs::DIRECTION_RIGHT},
+                            {Inputs::LOW_PUNCH, Inputs::RIGHT | Inputs::DIRECTION_LEFT, Inputs::LEFT | Inputs::DIRECTION_LEFT}},
+                .leftBarNameSource = { 5406, 173, 163, 12 },
+                .rightBarNameSource = { 5579, 173, 163, 12 },
+                .winText = WIN_SPRITE[CharacterType::SUBZERO],
+            };
 
             constexpr static Character LIU_KANG = {
-                "Liu Kang",
-                LIU_KANG_SPRITE,
-                    LIU_SPECIAL_ATTACK_SPRITE,
-                72,
-            {{Inputs::LOW_PUNCH, Inputs::LEFT | Inputs::DIRECTION_RIGHT, Inputs::RIGHT | Inputs::DIRECTION_RIGHT},
-                        {Inputs::LOW_PUNCH, Inputs::RIGHT | Inputs::DIRECTION_LEFT, Inputs::LEFT | Inputs::DIRECTION_LEFT}}};
+                .name = "Liu Kang",
+                .sprite = LIU_KANG_SPRITE,
+                .specialAttackSprite = LIU_SPECIAL_ATTACK_SPRITE,
+                .specialAttackOffset_y = 72,
+                .specialAttacks = {{Inputs::LOW_PUNCH, Inputs::LEFT | Inputs::DIRECTION_RIGHT, Inputs::RIGHT | Inputs::DIRECTION_RIGHT},
+                        {Inputs::LOW_PUNCH, Inputs::RIGHT | Inputs::DIRECTION_LEFT, Inputs::LEFT | Inputs::DIRECTION_LEFT}},
+                .leftBarNameSource = { 5406, 142, 163, 12 },
+                .rightBarNameSource = { 5579, 142, 163, 12 },
+                .winText = WIN_SPRITE[CharacterType::LIU_KANG],
+            };
         };
-
 
     };
 }
