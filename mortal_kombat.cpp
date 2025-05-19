@@ -38,7 +38,6 @@ namespace mortal_kombat
                     b2DestroyBody(entity.get<Collider>().body);
                     delete e_p;
                 }
-
                 entity.get<Collider>().body = b2_nullBodyId;
                 bagel::World::destroyEntity(e);
             }
@@ -189,7 +188,9 @@ namespace mortal_kombat
                         {
                             movement.vx = FALL_SPEED
                                         * (playerState.direction == LEFT ? 1.0f : -1.0f);
+                            break;
                         }
+                        movement.vx = 0;
                         break;
                     default:
                         if (!playerState.isJumping)
@@ -296,16 +297,6 @@ namespace mortal_kombat
                     auto& health = entity.get<Health>();
                     auto& character = entity.get<Character>();
 
-                    if (health.health <= 0 && playerState.state != State::GIDDY_FALL) {
-                        playerState.reset();
-                        playerState.state = State::GIDDY_FALL;
-                        playerState.isLaying = true;
-                        playerState.busyFrames = character.sprite[playerState.state].frameCount;
-                        playerState.freezeFrame = playerState.busyFrames - 1;
-                        playerState.freezeFrameDuration = 1000;
-                        playerState.busy = true;
-                    }
-
                     flipMode = (playerState.direction == LEFT) ?
                         SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
 
@@ -381,21 +372,24 @@ namespace mortal_kombat
             .build();
 
             // keep players to update directions based on relative positions
-            Position player1Pos{};
-            Position player2Pos{};
-            PlayerState* player1State = nullptr;
-            PlayerState* player2State = nullptr;
-            Character* player1Character = nullptr;
-            Character* player2Character = nullptr;
+            bagel::ent_type *player1Entity = nullptr;
+            bagel::ent_type *player2Entity = nullptr;
 
 
             for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id)
             {
                 if (bagel::Entity entity{e}; entity.test(mask))
                 {
+
                     const auto& inputs = entity.get<Inputs>();
                     auto& playerState = entity.get<PlayerState>();
                     auto& character = entity.get<Character>();
+
+                    if (playerState.playerNumber == 1) {
+                        player1Entity = new bagel::ent_type{e};
+                    } else if (playerState.playerNumber == 2) {
+                        player2Entity = new bagel::ent_type{e};
+                    }
 
                     State state = State::STANCE;
                     int freezeFrame = NONE;
@@ -610,44 +604,81 @@ namespace mortal_kombat
                             createAttack(x, y, playerState.state,
                                       playerState.playerNumber, playerState.direction);
                     }
-
-                    if (playerState.playerNumber == 1) {
-                        player1Pos = entity.get<Position>();
-                        player1State = &playerState;
-                        player1Character = &character;
-                    } else if (playerState.playerNumber == 2) {
-                        player2Pos = entity.get<Position>();
-                        player2State = &playerState;
-                        player2Character = &character;
-                    }
                 }
             }
 
 
+
         // Update directions based on relative positions
-        if (player1State && player2State && player1Character && player2Character){
-            // If player1 is to the left of player2
-            bool isPlayer1Direction = player1Pos.x < player2Pos.x ? RIGHT : LEFT;
-            bool isPlayer2Direction = !isPlayer1Direction;
-            if (!player1State->isJumping && !player1State->busy
-                && player1State->direction != isPlayer1Direction)
+        if (player1Entity && player2Entity){
+            bagel::Entity player1{*player1Entity};
+            bagel::Entity player2{*player2Entity};
+
+            if (player1.get<Health>().health <= 0 && player1.get<PlayerState>().state != State::GIDDY_FALL)
             {
-                player1State->direction = isPlayer1Direction; // Player1 faces right or left
-                player1State->reset();
-                player1State->state = State::TURN_LEFT_TO_RIGHT;
-                player1State->busy = true;
-                player1State->busyFrames = player1Character->sprite[player1State->state].frameCount;
+                bool isJumping = player1.get<PlayerState>().isJumping;
+                player1.get<PlayerState>().reset();
+                player1.get<PlayerState>().state = State::GIDDY_FALL;
+                player1.get<PlayerState>().busy = true;
+                player1.get<PlayerState>().isJumping = isJumping;
+                player1.get<PlayerState>().busyFrames = player1.get<Character>().sprite[player1.get<PlayerState>().state].frameCount;
+                player1.get<PlayerState>().freezeFrame = player1.get<PlayerState>().busyFrames - 1;
+                player1.get<PlayerState>().freezeFrameDuration = 1000;
+
+                isJumping = player2.get<PlayerState>().isJumping;
+                player2.get<PlayerState>().reset();
+                player2.get<PlayerState>().state = State::WIN;
+                player2.get<PlayerState>().busy = true;
+                player2.get<PlayerState>().isJumping = isJumping;
+                player2.get<PlayerState>().busyFrames = player2.get<Character>().sprite[player2.get<PlayerState>().state].frameCount;
+                player2.get<PlayerState>().freezeFrame = player2.get<PlayerState>().busyFrames - 1;
+                player2.get<PlayerState>().freezeFrameDuration = 1000;
             }
-            if (!player2State->isJumping && !player2State->busy
-                && player2State->direction != isPlayer2Direction)
+            if (player2.get<Health>().health <= 0 && player2.get<PlayerState>().state != State::GIDDY_FALL)
             {
-                player2State->direction = isPlayer2Direction; // Player2 faces right or left
-                player2State->reset();
-                player2State->state = State::TURN_LEFT_TO_RIGHT;
-                player2State->busy = true;
-                player2State->busyFrames = player2Character->sprite[player2State->state].frameCount;
+                bool isJumping = player2.get<PlayerState>().isJumping;
+                player2.get<PlayerState>().reset();
+                player2.get<PlayerState>().state = State::GIDDY_FALL;
+                player2.get<PlayerState>().busy = true;
+                player2.get<PlayerState>().isJumping = isJumping;
+                player2.get<PlayerState>().busyFrames = player2.get<Character>().sprite[player2.get<PlayerState>().state].frameCount;
+                player2.get<PlayerState>().freezeFrame = player2.get<PlayerState>().busyFrames - 1;
+                player2.get<PlayerState>().freezeFrameDuration = 1000;
+                isJumping = player1.get<PlayerState>().isJumping;
+                player1.get<PlayerState>().reset();
+                player1.get<PlayerState>().state = State::WIN;
+                player1.get<PlayerState>().busy = true;
+                player1.get<PlayerState>().isJumping = isJumping;
+                player1.get<PlayerState>().busyFrames = player1.get<Character>().sprite[player1.get<PlayerState>().state].frameCount;
+                player1.get<PlayerState>().freezeFrame = player1.get<PlayerState>().busyFrames - 1;
+                player1.get<PlayerState>().freezeFrameDuration = 1000;
+            }
+
+            // If player1 is to the left of player2
+            bool isPlayer1Direction = player1.get<Position>().x < player2.get<Position>().x ? RIGHT : LEFT;
+            bool isPlayer2Direction = !isPlayer1Direction;
+            if (!player1.get<PlayerState>().isJumping && !player1.get<PlayerState>().busy
+                && player1.get<PlayerState>().direction != isPlayer1Direction)
+            {
+                player1.get<PlayerState>().direction = isPlayer1Direction; // Player1 faces right or left
+                player1.get<PlayerState>().reset();
+                player1.get<PlayerState>().state = State::TURN_LEFT_TO_RIGHT;
+                player1.get<PlayerState>().busy = true;
+                player1.get<PlayerState>().busyFrames = player1.get<Character>().sprite[player1.get<PlayerState>().state].frameCount;
+            }
+            if (!player2.get<PlayerState>().isJumping && !player2.get<PlayerState>().busy
+                && player2.get<PlayerState>().direction != isPlayer2Direction)
+            {
+                player2.get<PlayerState>().direction = isPlayer2Direction; // Player2 faces right or left
+                player2.get<PlayerState>().reset();
+                player2.get<PlayerState>().state = State::TURN_LEFT_TO_RIGHT;
+                player2.get<PlayerState>().busy = true;
+                player2.get<PlayerState>().busyFrames = player2.get<Character>().sprite[player2.get<PlayerState>().state].frameCount;
             }
         }
+        // Clean up
+        delete player1Entity;
+        delete player2Entity;
     }
 
     void MK::InputSystem() {
@@ -1159,8 +1190,63 @@ namespace mortal_kombat
         }
     }
 
-    // ------------------------------- Helper Functions -------------------------------
+    SDL_Texture* MK::TextureSystem::getTexture(SDL_Renderer* renderer, const std::string& filePath, IgnoreColorKey ignoreColorKey)
+    {
+        // Check if the texture is already cached
+        std::string cacheKey = filePath + "_" + std::to_string(static_cast<int>(ignoreColorKey));
 
+        if (textureCache.find(cacheKey) != textureCache.end()) {
+            return textureCache[cacheKey];
+        }
+
+        // Load the texture if not cached
+        SDL_Surface* surface = IMG_Load(filePath.c_str());
+        if (!surface) {
+            SDL_Log("Failed to load image: %s, SDL_Error: %s", filePath.c_str(), SDL_GetError());
+            return nullptr;
+        }
+
+        const SDL_PixelFormatDetails *fmt = SDL_GetPixelFormatDetails(surface->format);
+        switch (ignoreColorKey)
+        {
+            case IgnoreColorKey::CHARCHTER:
+                SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
+                                                      CHARACTER_COLOR_IGNORE_RED,
+                                                      CHARACTER_COLOR_IGNORE_GREEN,
+                                                      CHARACTER_COLOR_IGNORE_BLUE));
+                break;
+            case IgnoreColorKey::BACKGROUND:
+                SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
+                                                      BACKGROUND_COLOR_IGNORE_RED,
+                                                      BACKGROUND_COLOR_IGNORE_GREEN,
+                                                      BACKGROUND_COLOR_IGNORE_BLUE));
+                break;
+        case IgnoreColorKey::NAME_BAR:
+                SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
+                                                      COLOR_KEY_NAME_BAR_RED,
+                                                      COLOR_KEY_NAME_BAR_GREEN,
+                                                      COLOR_KEY_NAME_BAR_BLUE));
+                break;
+        case IgnoreColorKey::DAMAGE_BAR:
+                SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
+                                                      COLOR_KEY_DAMAGE_BAR_RED,
+                                                      COLOR_KEY_DAMAGE_BAR_GREEN,
+                                                      COLOR_KEY_DAMAGE_BAR_BLUE));
+                break;
+        }
+
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+        SDL_DestroySurface(surface);
+
+        if (!texture) {
+            SDL_Log("Failed to create texture: %s, SDL_Error: %s", filePath.c_str(), SDL_GetError());
+            return nullptr;
+        }
+
+        // Cache the texture
+        textureCache[cacheKey] = texture;
+        return texture;
+    }
 
     // ------------------------------- Entities -------------------------------
 
@@ -1169,7 +1255,7 @@ namespace mortal_kombat
 
             // Construct the texture path
             std::string texturePath = "res/" + std::string(character.name) + ".png";
-            auto texture = TextureSystem::getTexture(ren, texturePath, true);
+            auto texture = TextureSystem::getTexture(ren, texturePath, TextureSystem::IgnoreColorKey::CHARCHTER);
 
             b2BodyDef bodyDef = b2DefaultBodyDef();
             bodyDef.type = b2_kinematicBody;
@@ -1284,7 +1370,7 @@ namespace mortal_kombat
         {
             // Construct the texture path
             std::string texturePath = "res/" + std::string(character.name) + ".png";
-            auto texture = TextureSystem::getTexture(ren, texturePath, true);
+            auto texture = TextureSystem::getTexture(ren, texturePath, TextureSystem::IgnoreColorKey::CHARCHTER);
 
             b2BodyDef bodyDef = b2DefaultBodyDef();
             bodyDef.type = b2_kinematicBody;
@@ -1367,30 +1453,10 @@ namespace mortal_kombat
 
     }
 
-    void MK::createBackground(std::string backgroundPath) {
+    void MK::createBackground(const std::string& backgroundPath) const
+    {
 
-        // Load the image as a surface
-        SDL_Surface* surface = IMG_Load(backgroundPath.c_str());
-        if (!surface) {
-            SDL_Log("Failed to load image: %s, SDL_Error: %s", backgroundPath.c_str(), SDL_GetError());
-            return;
-        }
-
-        const SDL_PixelFormatDetails *fmt = SDL_GetPixelFormatDetails(surface->format);
-
-        SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
-                                                      BACKGROUND_COLOR_IGNORE_RED,
-                                                      BACKGROUND_COLOR_IGNORE_GREEN,
-                                                      BACKGROUND_COLOR_IGNORE_BLUE));
-
-        // Create a texture from the surface
-        SDL_Texture* texture = SDL_CreateTextureFromSurface(ren, surface);
-        SDL_DestroySurface(surface); // Free the surface after creating the texture
-
-        if (!texture) {
-            SDL_Log("Failed to create texture: %s, SDL_Error: %s", backgroundPath.c_str(), SDL_GetError());
-            return;
-        }
+        auto texture = TextureSystem::getTexture(ren, backgroundPath, TextureSystem::IgnoreColorKey::BACKGROUND);
 
         // Create fence
         bagel::Entity fence = bagel::Entity::create();
@@ -1422,89 +1488,18 @@ namespace mortal_kombat
         SDL_FRect RED_BAR_SRC   = { 5406, 63, 163, 12 }; // Red  (bottom bar)
 
         // Bar dimensions
-        const float BAR_WIDTH = 250.0f;
-        const float BAR_HEIGHT = 18.0f;
+        constexpr float BAR_WIDTH = 250.0f;
+        constexpr float BAR_HEIGHT = 18.0f;
 
         // Positioning constants
-        const float OFFSET_Y = 10.0f;
-        const float MARGIN = 50.0f;
-        const float xRight = WINDOW_WIDTH - BAR_WIDTH - MARGIN;
-
-        // Color key for the bar texture
-        const Uint8 COLOR_KEY_DAMAGE_BAR_RED = 82;
-        const Uint8 COLOR_KEY_DAMAGE_BAR_GREEN = 1;
-        const Uint8 COLOR_KEY_DAMAGE_BAR_BLUE = 1;
-
-        // Color key for the bar texture
-        const Uint8 COLOR_KEY_NAME_BAR_RED = 0;
-        const Uint8 COLOR_KEY_NAME_BAR_GREEN = 165;
-        const Uint8 COLOR_KEY_NAME_BAR_BLUE = 0;
+        constexpr float OFFSET_Y = 10.0f;
+        constexpr float MARGIN = 50.0f;
+        constexpr float xRight = WINDOW_WIDTH - BAR_WIDTH - MARGIN;
 
         // Load the image as a surface
         SDL_Surface* original = IMG_Load("res/Menus & Text.png");
-        if (!original) {
-            SDL_Log("Failed to load bar image: %s", SDL_GetError());
-            return;
-        }
-
-        // Duplicate the surface for damage bar
-        SDL_Surface* surfaceDamage = SDL_DuplicateSurface(original);
-        if (!surfaceDamage) {
-            SDL_Log("Failed to duplicate surface for damage bar: %s", SDL_GetError());
-            SDL_DestroySurface(original);
-            return;
-        }
-
-        // Duplicate the surface for name bar
-        SDL_Surface* surfaceName = SDL_DuplicateSurface(original);
-        if (!surfaceName) {
-            SDL_Log("Failed to duplicate surface for name bar: %s", SDL_GetError());
-            SDL_DestroySurface(original);
-            SDL_DestroySurface(surfaceDamage);
-            return;
-        }
-
-        // Free the original
-        SDL_DestroySurface(original);
-
-        // Set the color key for the damage bar surface
-        const SDL_PixelFormatDetails *damage_fmt = SDL_GetPixelFormatDetails(surfaceDamage->format);
-
-        SDL_SetSurfaceColorKey(surfaceDamage, true, SDL_MapRGB(damage_fmt, nullptr,
-                                                      COLOR_KEY_DAMAGE_BAR_RED,
-                                                      COLOR_KEY_DAMAGE_BAR_GREEN,
-                                                      COLOR_KEY_DAMAGE_BAR_BLUE));
-
-        // Set the color key for the name bar surface
-        const SDL_PixelFormatDetails *name_fmt = SDL_GetPixelFormatDetails(surfaceDamage->format);
-
-        SDL_SetSurfaceColorKey(surfaceName, true, SDL_MapRGB(name_fmt, nullptr,
-                                                      COLOR_KEY_NAME_BAR_RED,
-                                                      COLOR_KEY_NAME_BAR_GREEN,
-                                                      COLOR_KEY_NAME_BAR_BLUE));
-
-        // Create textures
-        SDL_Texture* barTexture = SDL_CreateTextureFromSurface(ren, surfaceDamage);
-        if (!barTexture) {
-            SDL_Log("Failed to create damage bar texture: %s", SDL_GetError());
-            // Cleanup
-            SDL_DestroySurface(surfaceDamage);
-            SDL_DestroySurface(surfaceName);
-            return;
-        }
-
-        SDL_Texture* nameTexture = SDL_CreateTextureFromSurface(ren, surfaceName);
-        if (!nameTexture) {
-            SDL_Log("Failed to create name bar texture: %s", SDL_GetError());
-            SDL_DestroySurface(surfaceDamage);
-            SDL_DestroySurface(surfaceName);
-            SDL_DestroyTexture(barTexture);
-            return;
-        }
-
-        // Cleanup surfaces after texture creation
-        SDL_DestroySurface(surfaceDamage);
-        SDL_DestroySurface(surfaceName);
+        auto barTexture = TextureSystem::getTexture(ren, "res/Menus & Text.png", TextureSystem::IgnoreColorKey::DAMAGE_BAR);
+        auto nameTexture = TextureSystem::getTexture(ren, "res/Menus & Text.png", TextureSystem::IgnoreColorKey::NAME_BAR);
 
         // Player 1 - RED background bar
         bagel::Entity red1 = bagel::Entity::create();

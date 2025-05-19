@@ -43,9 +43,6 @@ namespace mortal_kombat
         static constexpr int NEXT_FRAME_OFFSET = 4;
         static constexpr int SHADOW_OFFSET = 8;
 
-        static constexpr Uint8 COLOR_IGNORE_RED = 165;
-        static constexpr Uint8 COLOR_IGNORE_GREEN = 231;
-        static constexpr Uint8 COLOR_IGNORE_BLUE = 255;
         static constexpr int NONE = -1;
 
         static constexpr int PLAYER_1_BASE_X = WINDOW_WIDTH / 4 - (CHAR_SQUARE_WIDTH / 2) - 100;
@@ -56,10 +53,6 @@ namespace mortal_kombat
         static constexpr bool RIGHT = false;
         // Background constants
         // -------------------------------------------------------
-        static constexpr Uint8 BACKGROUND_COLOR_IGNORE_RED = 252;
-        static constexpr Uint8 BACKGROUND_COLOR_IGNORE_GREEN = 0;
-        static constexpr Uint8 BACKGROUND_COLOR_IGNORE_BLUE = 252;
-
         static constexpr int fenceX = 290;
         static constexpr int fenceY = 300;
         static constexpr int fenceW = 300;
@@ -369,43 +362,15 @@ namespace mortal_kombat
         class TextureSystem
         {
         public:
-            /// @brief Loads a texture from a file and caches it for future use.
-            static SDL_Texture* getTexture(SDL_Renderer* renderer, const std::string& filePath, bool ignoreColorKey = false)
+            enum class IgnoreColorKey
             {
-                // Check if the texture is already cached
-                if (textureCache.find(filePath) != textureCache.end()) {
-                    return textureCache[filePath];
-                }
-
-                // Load the texture if not cached
-                SDL_Surface* surface = IMG_Load(filePath.c_str());
-                if (!surface) {
-                    SDL_Log("Failed to load image: %s, SDL_Error: %s", filePath.c_str(), SDL_GetError());
-                    return nullptr;
-                }
-
-                if (ignoreColorKey) {
-                    // Set the color key for transparency
-                    const SDL_PixelFormatDetails *fmt = SDL_GetPixelFormatDetails(surface->format);
-
-                    SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
-                                                          COLOR_IGNORE_RED,
-                                                          COLOR_IGNORE_GREEN,
-                                                          COLOR_IGNORE_BLUE));
-                }
-
-                SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-                SDL_DestroySurface(surface);
-
-                if (!texture) {
-                    SDL_Log("Failed to create texture: %s, SDL_Error: %s", filePath.c_str(), SDL_GetError());
-                    return nullptr;
-                }
-
-                // Cache the texture
-                textureCache[filePath] = texture;
-                return texture;
-            }
+                CHARCHTER,
+                BACKGROUND,
+                NAME_BAR,
+                DAMAGE_BAR
+            };
+            /// @brief Loads a texture from a file and caches it for future use.
+            static SDL_Texture* getTexture(SDL_Renderer* renderer, const std::string& filePath, IgnoreColorKey ignoreColorKey);
 
             /// @brief Clears the texture cache and destroys all cached textures.
             static void clearCache() {
@@ -414,8 +379,26 @@ namespace mortal_kombat
                 }
                 textureCache.clear();
             }
-
         private:
+            static constexpr Uint8 CHARACTER_COLOR_IGNORE_RED = 165;
+            static constexpr Uint8 CHARACTER_COLOR_IGNORE_GREEN = 231;
+            static constexpr Uint8 CHARACTER_COLOR_IGNORE_BLUE = 255;
+
+            static constexpr Uint8 BACKGROUND_COLOR_IGNORE_RED = 252;
+            static constexpr Uint8 BACKGROUND_COLOR_IGNORE_GREEN = 0;
+            static constexpr Uint8 BACKGROUND_COLOR_IGNORE_BLUE = 252;
+
+            // Color key for the bar texture
+            static constexpr Uint8 COLOR_KEY_DAMAGE_BAR_RED = 82;
+            static constexpr Uint8 COLOR_KEY_DAMAGE_BAR_GREEN = 1;
+            static constexpr Uint8 COLOR_KEY_DAMAGE_BAR_BLUE = 1;
+
+            // Color key for the bar texture
+            static constexpr Uint8 COLOR_KEY_NAME_BAR_RED = 0;
+            static constexpr Uint8 COLOR_KEY_NAME_BAR_GREEN = 165;
+            static constexpr Uint8 COLOR_KEY_NAME_BAR_BLUE = 0;
+
+
             static std::unordered_map<std::string, SDL_Texture*> textureCache;
         };
 
@@ -456,7 +439,7 @@ namespace mortal_kombat
 
         /// @brief Creates a background entity.
         /// @param backgroundName SDL texture for the background.
-        inline void createBackground(std::string backgroundName);
+        inline void createBackground(const std::string& backgroundName) const;
 
         void createBar(bagel::Entity player1, bagel::Entity player2);
 
