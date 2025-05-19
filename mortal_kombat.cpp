@@ -181,7 +181,9 @@ namespace mortal_kombat
                         {
                             movement.vx = FALL_SPEED
                                         * (playerState.direction == LEFT ? 1.0f : -1.0f);
+                            break;
                         }
+                        movement.reset();
                         break;
                     default:
                         if (!playerState.isJumping)
