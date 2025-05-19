@@ -57,8 +57,8 @@ namespace mortal_kombat
 
         createBackground("res/Background.png");
 
-        createBoundary(0, 0, LEFT);
-        createBoundary(WINDOW_WIDTH, 0, RIGHT);
+        //createBoundary(0, 0, LEFT);
+        //createBoundary(WINDOW_WIDTH, 0, RIGHT);
         bagel::Entity player1 = createPlayer(PLAYER_1_BASE_X, PLAYER_BASE_Y, Characters::SUBZERO, 1);
         bagel::Entity player2 = createPlayer(PLAYER_2_BASE_X, PLAYER_BASE_Y, Characters::LIU_KANG, 2);
 
