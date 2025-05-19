@@ -371,315 +371,284 @@ namespace mortal_kombat
             .set<Character>()
             .build();
 
-            // keep players to update directions based on relative positions
-            bagel::ent_type *player1Entity = nullptr;
-            bagel::ent_type *player2Entity = nullptr;
+        bagel::ent_type player1Entity{}, player2Entity{};
+        bool foundPlayer1 = false, foundPlayer2 = false;
 
-
-            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id)
+        // Helper lambda to map inputs to state
+        auto getStateFromInputs = [](const Inputs& inputs, const Character& character, State& state, int& freezeFrame,
+                                     int& freezeFrameDuration, bool& busy, bool& crouching, bool& attack, bool& special,
+                                     bool& jumping)
+        {
+            for (int i = 0; i < Character::SPECIAL_ATTACKS_COUNT && !special; ++i)
             {
-                if (bagel::Entity entity{e}; entity.test(mask))
+                if (inputs == character.specialAttacks[i]
+                        || inputs == character.specialAttacks[i + 1])
                 {
-
-                    const auto& inputs = entity.get<Inputs>();
-                    auto& playerState = entity.get<PlayerState>();
-                    auto& character = entity.get<Character>();
-
-                    if (playerState.playerNumber == 1) {
-                        player1Entity = new bagel::ent_type{e};
-                    } else if (playerState.playerNumber == 2) {
-                        player2Entity = new bagel::ent_type{e};
-                    }
-
-                    State state = State::STANCE;
-                    int freezeFrame = NONE;
-                    int freezeFrameDuration = 0;
-                    bool busy = true;
-                    bool crouching = false;
-                    bool attack = false;
-                    bool special = false;
-                    bool jumping = false;
-
-                    // Handles special attacks
-                    for (int i = 0; i < Character::SPECIAL_ATTACKS_COUNT && !special; ++i)
-                    {
-                        if (inputs == character.specialAttacks[i]
-                            || inputs == character.specialAttacks[i + 1])
-                        {
-                            state = static_cast<State>(i + static_cast<int>(State::SPECIAL_1));
-                            attack = true;
-                            special = true;
-                        }
-                    }
-
-                    if (!special)
-                    {
-                        if (inputs == Inputs::JUMP_PUNCH)
-                        {
-                            state = State::JUMP_PUNCH;
-                            freezeFrame = character.sprite[state].frameCount - 1;
-                            attack = true;
-                            jumping = true;
-                        }
-                        else if (inputs == Inputs::JUMP_LOW_KICK)
-                        {
-                            state = State::JUMP_LOW_KICK;
-                            freezeFrame = character.sprite[state].frameCount - 1;
-                            attack = true;
-                            jumping = true;
-                        }
-                        else if (inputs == Inputs::JUMP_HIGH_KICK)
-                        {
-                            state = State::JUMP_HIGH_KICK;
-                            freezeFrame = character.sprite[state].frameCount - 1;
-                            attack = true;
-                            jumping = true;
-                        }
-                        else if (inputs == Inputs::CROUCH_BLOCK)
-                        {
-                            state = State::CROUCH_BLOCK;
-                            freezeFrame = character.sprite[state].frameCount / 2 + 1;
-                            freezeFrameDuration = 1;
-                            crouching = true;
-                        }
-                        else if (inputs == Inputs::BLOCK)
-                        {
-                            state = State::BLOCK;
-                            freezeFrame = character.sprite[state].frameCount / 2 + 1;
-                            freezeFrameDuration = 1;
-                        }
-                        else if (inputs == Inputs::CROUCH_KICK)
-                        {
-                            state = State::CROUCH_KICK;
-                            crouching = true;
-                            attack = true;
-                        }
-                        else if (inputs == Inputs::JUMP_BACK_RIGHT
-                                || inputs == Inputs::JUMP_BACK_LEFT)
-                        {
-                            state = State::JUMP_BACK;
-                            busy = false;
-                        }
-                        else if (inputs == Inputs::ROLL_RIGHT
-                                || inputs == Inputs::ROLL_LEFT)
-                        {
-                            state = State::ROLL;
-                            busy = false;
-                        }
-                        else if (inputs == Inputs::UP)
-                        {
-                            state = State::JUMP;
-                            busy = false;
-                        }
-                        else if (inputs == Inputs::HIGH_SWEEP_KICK_LEFT
-                                || inputs == Inputs::HIGH_SWEEP_KICK_RIGHT)
-                        {
-                            state = State::HIGH_SWEEP_KICK;
-                            attack = true;
-                        }
-                        else if (inputs == Inputs::LOW_SWEEP_KICK_LEFT
-                                || inputs == Inputs::LOW_SWEEP_KICK_RIGHT)
-                        {
-                            state = State::LOW_SWEEP_KICK;
-                            attack = true;
-                        }
-                        else if (inputs == Inputs::UPPERCUT)
-                        {
-                            state = State::UPPERCUT;
-                            crouching = true;
-                            attack = true;
-                        }
-                        else if (inputs == Inputs::DOWN)
-                        {
-                            state = State::CROUCH;
-                            freezeFrame = (character.sprite[state].frameCount / 2) + 1;
-                            freezeFrameDuration = 1;
-                            crouching = true;
-                        }
-                        else if (inputs == Inputs::LOW_PUNCH)
-                        {
-                            state = State::LOW_PUNCH;
-                            attack = true;
-                        }
-                        else if (inputs == Inputs::HIGH_PUNCH)
-                        {
-                            state = State::HIGH_PUNCH;
-                            attack = true;
-                        }
-                        else if (inputs == Inputs::LOW_KICK)
-                        {
-                            state = State::LOW_KICK;
-                            attack = true;
-                        }
-                        else if (inputs == Inputs::HIGH_KICK)
-                        {
-                            state = State::HIGH_KICK;
-                            attack = true;
-                        }
-                        else if (inputs == Inputs::WALK_BACKWARDS_RIGHT
-                                || inputs == Inputs::WALK_BACKWARDS_LEFT)
-                        {
-                            state = State::WALK_BACKWARDS;
-                            busy = false;
-                        }
-                        else if (inputs == Inputs::WALK_FORWARDS_RIGHT
-                                || inputs == Inputs::WALK_FORWARDS_LEFT)
-                        {
-                            state = State::WALK_FORWARDS;
-                            busy = false;
-                        }
-                        else
-                        {
-                            state = State::STANCE;
-                            busy = false;
-                        }
-                    }
-
-                    // Check if the player is busy and update the state accordingly
-                    if (playerState.busyFrames - 1 <= playerState.currFrame
-                        && playerState.freezeFrameDuration <= 0)
-                    {
-                        playerState.busy = false;
-                    }
-
-                    // Check if the player is laying and not busy
-                    // -> if so get up
-                    if (playerState.isLaying && !playerState.busy)
-                    {
-                        playerState.reset();
-                        playerState.state = State::GETUP;
-                        playerState.busyFrames = character.sprite[playerState.state].frameCount;
-                        playerState.busy = true;
-                    }
-
-                    // Check if the player is in a different state and update accordingly
-                    if (((!playerState.busy && (state != playerState.state || attack))
-                        || (playerState.state == State::CROUCH && crouching && state != State::CROUCH))
-                        && (!playerState.isJumping || jumping))
-                    {
-                        playerState.reset();
-                        playerState.state = state;
-                        playerState.currFrame = (playerState.isCrouching && state == State::CROUCH) ? 2 : 0;
-                        playerState.busyFrames = character.sprite[playerState.state].frameCount;
-                        playerState.freezeFrame = freezeFrame;
-                        playerState.freezeFrameDuration = freezeFrameDuration;
-                        playerState.isJumping = jumping;
-                        playerState.isCrouching = crouching;
-                        playerState.isAttacking = attack;
-                        playerState.isSpecialAttack = special;
-                        playerState.specialAttackCooldown = special ? playerState.busyFrames * 2 : 0;
-                        playerState.busy = busy;
-                    }
-
-                    // increases duration of freeze frames if the state is the same
-                    // e.g. when the player is blocking
-                    if (playerState.freezeFrame != NONE && state == playerState.state)
-                    {
-                        ++playerState.freezeFrameDuration;
-                    }
-
-                    // Update the current frame
-                    if (playerState.freezeFrame != NONE
-                        && playerState.currFrame + 1 >= playerState.freezeFrame
-                        && playerState.freezeFrameDuration > 0)
-                    {
-                        --playerState.freezeFrameDuration;
-                        playerState.currFrame = playerState.freezeFrame;
-                    }
-                    else if (!playerState.isJumping || playerState.currFrame < playerState.busyFrames-1)
-                        ++playerState.currFrame;
-
-                    // Handles when player is attacking
-                    if (playerState.busy && playerState.isAttacking)
-                    {
-                        auto& [x, y] = entity.get<Position>();
-                        if (playerState.isSpecialAttack
-                            && (playerState.currFrame % character.sprite[playerState.state].frameCount) == character.sprite[playerState.state].frameCount / 2)
-                            createSpecialAttack(x, y, SpecialAttacks::FIREBALL,
-                                      playerState.playerNumber, playerState.direction, character);
-                        else if (playerState.isJumping)
-                            createAttack(x, y, playerState.state,
-                                      playerState.playerNumber, playerState.direction);
-                        else if ((playerState.currFrame % character.sprite[playerState.state].frameCount) == character.sprite[playerState.state].frameCount / 3)
-                            createAttack(x, y, playerState.state,
-                                      playerState.playerNumber, playerState.direction);
-                    }
+                    state = static_cast<State>(i + static_cast<int>(State::SPECIAL_1));
+                    attack = true;
+                    special = true;
+                    return;
                 }
             }
 
-
-
-        // Update directions based on relative positions
-        if (player1Entity && player2Entity){
-            bagel::Entity player1{*player1Entity};
-            bagel::Entity player2{*player2Entity};
-
-            if (player1.get<Health>().health <= 0 && player1.get<PlayerState>().state != State::GIDDY_FALL)
+            if (inputs == Inputs::JUMP_PUNCH)
             {
-                bool isJumping = player1.get<PlayerState>().isJumping;
-                player1.get<PlayerState>().reset();
-                player1.get<PlayerState>().state = State::GIDDY_FALL;
-                player1.get<PlayerState>().busy = true;
-                player1.get<PlayerState>().isJumping = isJumping;
-                player1.get<PlayerState>().busyFrames = player1.get<Character>().sprite[player1.get<PlayerState>().state].frameCount;
-                player1.get<PlayerState>().freezeFrame = player1.get<PlayerState>().busyFrames - 1;
-                player1.get<PlayerState>().freezeFrameDuration = 1000;
-
-                isJumping = player2.get<PlayerState>().isJumping;
-                player2.get<PlayerState>().reset();
-                player2.get<PlayerState>().state = State::WIN;
-                player2.get<PlayerState>().busy = true;
-                player2.get<PlayerState>().isJumping = isJumping;
-                player2.get<PlayerState>().busyFrames = player2.get<Character>().sprite[player2.get<PlayerState>().state].frameCount;
-                player2.get<PlayerState>().freezeFrame = player2.get<PlayerState>().busyFrames - 1;
-                player2.get<PlayerState>().freezeFrameDuration = 1000;
+                state = State::JUMP_PUNCH;
+                freezeFrame = character.sprite[state].frameCount - 1;
+                attack = true;
+                jumping = true;
             }
-            if (player2.get<Health>().health <= 0 && player2.get<PlayerState>().state != State::GIDDY_FALL)
+            else if (inputs == Inputs::JUMP_LOW_KICK)
             {
-                bool isJumping = player2.get<PlayerState>().isJumping;
-                player2.get<PlayerState>().reset();
-                player2.get<PlayerState>().state = State::GIDDY_FALL;
-                player2.get<PlayerState>().busy = true;
-                player2.get<PlayerState>().isJumping = isJumping;
-                player2.get<PlayerState>().busyFrames = player2.get<Character>().sprite[player2.get<PlayerState>().state].frameCount;
-                player2.get<PlayerState>().freezeFrame = player2.get<PlayerState>().busyFrames - 1;
-                player2.get<PlayerState>().freezeFrameDuration = 1000;
-                isJumping = player1.get<PlayerState>().isJumping;
-                player1.get<PlayerState>().reset();
-                player1.get<PlayerState>().state = State::WIN;
-                player1.get<PlayerState>().busy = true;
-                player1.get<PlayerState>().isJumping = isJumping;
-                player1.get<PlayerState>().busyFrames = player1.get<Character>().sprite[player1.get<PlayerState>().state].frameCount;
-                player1.get<PlayerState>().freezeFrame = player1.get<PlayerState>().busyFrames - 1;
-                player1.get<PlayerState>().freezeFrameDuration = 1000;
+                state = State::JUMP_LOW_KICK;
+                freezeFrame = character.sprite[state].frameCount - 1;
+                attack = true;
+                jumping = true;
             }
+            else if (inputs == Inputs::JUMP_HIGH_KICK)
+            {
+                state = State::JUMP_HIGH_KICK;
+                freezeFrame = character.sprite[state].frameCount - 1;
+                attack = true;
+                jumping = true;
+            }
+            else if (inputs == Inputs::CROUCH_BLOCK)
+            {
+                state = State::CROUCH_BLOCK;
+                freezeFrame = character.sprite[state].frameCount / 2 + 1;
+                freezeFrameDuration = 1;
+                crouching = true;
+            }
+            else if (inputs == Inputs::BLOCK)
+            {
+                state = State::BLOCK;
+                freezeFrame = character.sprite[state].frameCount / 2 + 1;
+                freezeFrameDuration = 1;
+            }
+            else if (inputs == Inputs::CROUCH_KICK)
+            {
+                state = State::CROUCH_KICK;
+                crouching = true;
+                attack = true;
+            }
+            else if (inputs == Inputs::JUMP_BACK_RIGHT
+                    || inputs == Inputs::JUMP_BACK_LEFT)
+            {
+                state = State::JUMP_BACK;
+                busy = false;
+            }
+            else if (inputs == Inputs::ROLL_RIGHT
+                    || inputs == Inputs::ROLL_LEFT)
+            {
+                state = State::ROLL;
+                busy = false;
+            }
+            else if (inputs == Inputs::UP)
+            {
+                state = State::JUMP;
+                busy = false;
+            }
+            else if (inputs == Inputs::HIGH_SWEEP_KICK_LEFT
+                    || inputs == Inputs::HIGH_SWEEP_KICK_RIGHT)
+            {
+                state = State::HIGH_SWEEP_KICK;
+                attack = true;
+            }
+            else if (inputs == Inputs::LOW_SWEEP_KICK_LEFT
+                    || inputs == Inputs::LOW_SWEEP_KICK_RIGHT)
+            {
+                state = State::LOW_SWEEP_KICK;
+                attack = true;
+            }
+            else if (inputs == Inputs::UPPERCUT)
+            {
+                state = State::UPPERCUT;
+                crouching = true;
+                attack = true;
+            }
+            else if (inputs == Inputs::DOWN)
+            {
+                state = State::CROUCH;
+                freezeFrame = (character.sprite[state].frameCount / 2) + 1;
+                freezeFrameDuration = 1;
+                crouching = true;
+            }
+            else if (inputs == Inputs::LOW_PUNCH)
+            {
+                state = State::LOW_PUNCH;
+                attack = true;
+            }
+            else if (inputs == Inputs::HIGH_PUNCH)
+            {
+                state = State::HIGH_PUNCH;
+                attack = true;
+            }
+            else if (inputs == Inputs::LOW_KICK)
+            {
+                state = State::LOW_KICK;
+                attack = true;
+            }
+            else if (inputs == Inputs::HIGH_KICK)
+            {
+                state = State::HIGH_KICK;
+                attack = true;
+            }
+            else if (inputs == Inputs::WALK_BACKWARDS_RIGHT
+                    || inputs == Inputs::WALK_BACKWARDS_LEFT)
+            {
+                state = State::WALK_BACKWARDS;
+                busy = false;
+            }
+            else if (inputs == Inputs::WALK_FORWARDS_RIGHT
+                    || inputs == Inputs::WALK_FORWARDS_LEFT)
+            {
+                state = State::WALK_FORWARDS;
+                busy = false;
+            }
+            else
+            {
+                state = State::STANCE;
+                busy = false;
+            }
+        };
 
-            // If player1 is to the left of player2
-            bool isPlayer1Direction = player1.get<Position>().x < player2.get<Position>().x ? RIGHT : LEFT;
-            bool isPlayer2Direction = !isPlayer1Direction;
-            if (!player1.get<PlayerState>().isJumping && !player1.get<PlayerState>().busy
-                && player1.get<PlayerState>().direction != isPlayer1Direction)
+        for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id)
+        {
+            if (bagel::Entity entity{e}; entity.test(mask))
             {
-                player1.get<PlayerState>().direction = isPlayer1Direction; // Player1 faces right or left
-                player1.get<PlayerState>().reset();
-                player1.get<PlayerState>().state = State::TURN_LEFT_TO_RIGHT;
-                player1.get<PlayerState>().busy = true;
-                player1.get<PlayerState>().busyFrames = player1.get<Character>().sprite[player1.get<PlayerState>().state].frameCount;
-            }
-            if (!player2.get<PlayerState>().isJumping && !player2.get<PlayerState>().busy
-                && player2.get<PlayerState>().direction != isPlayer2Direction)
-            {
-                player2.get<PlayerState>().direction = isPlayer2Direction; // Player2 faces right or left
-                player2.get<PlayerState>().reset();
-                player2.get<PlayerState>().state = State::TURN_LEFT_TO_RIGHT;
-                player2.get<PlayerState>().busy = true;
-                player2.get<PlayerState>().busyFrames = player2.get<Character>().sprite[player2.get<PlayerState>().state].frameCount;
+                auto& inputs = entity.get<Inputs>();
+                auto& playerState = entity.get<PlayerState>();
+                auto& character = entity.get<Character>();
+
+                if (playerState.playerNumber == 1) { player1Entity = e; foundPlayer1 = true; }
+                else if (playerState.playerNumber == 2) { player2Entity = e; foundPlayer2 = true; }
+
+                // State variables
+                State state = State::STANCE;
+                int freezeFrame = NONE, freezeFrameDuration = 0;
+                bool busy = true, crouching = false, attack = false, special = false, jumping = false;
+
+                // Use helper to determine state and flags
+                getStateFromInputs(inputs, character, state, freezeFrame,
+                                    freezeFrameDuration, busy, crouching,
+                                    attack, special, jumping);
+
+                // Handle busy state and transitions
+                if (playerState.busyFrames - 1 <= playerState.currFrame && playerState.freezeFrameDuration <= 0)
+                    playerState.busy = false;
+
+                if (playerState.isLaying && !playerState.busy)
+                {
+                    playerState.reset();
+                    playerState.state = State::GETUP;
+                    playerState.busyFrames = character.sprite[playerState.state].frameCount;
+                    playerState.busy = true;
+                }
+
+                // State change logic
+                bool shouldChangeState = ((!playerState.busy && (state != playerState.state || attack))
+                    || (playerState.state == State::CROUCH && crouching && state != State::CROUCH))
+                    && (!playerState.isJumping || jumping);
+
+                if (shouldChangeState)
+                {
+                    playerState.reset();
+                    playerState.state = state;
+                    playerState.currFrame = (playerState.isCrouching && state == State::CROUCH) ? 2 : 0;
+                    playerState.busyFrames = character.sprite[playerState.state].frameCount;
+                    playerState.freezeFrame = freezeFrame;
+                    playerState.freezeFrameDuration = freezeFrameDuration;
+                    playerState.isJumping = jumping;
+                    playerState.isCrouching = crouching;
+                    playerState.isAttacking = attack;
+                    playerState.isSpecialAttack = special;
+                    playerState.specialAttackCooldown = special ? playerState.busyFrames * 2 : 0;
+                    playerState.busy = busy;
+                }
+
+                // Freeze frame logic
+                if (playerState.freezeFrame != NONE && state == playerState.state)
+                    ++playerState.freezeFrameDuration;
+
+                if (playerState.freezeFrame != NONE
+                    && playerState.currFrame + 1 >= playerState.freezeFrame
+                    && playerState.freezeFrameDuration > 0)
+                {
+                    --playerState.freezeFrameDuration;
+                    playerState.currFrame = playerState.freezeFrame;
+                }
+                else if (!playerState.isJumping || playerState.currFrame < playerState.busyFrames-1)
+                    ++playerState.currFrame;
+
+                // Attack creation
+                if (playerState.busy && playerState.isAttacking)
+                {
+                    auto& [x, y] = entity.get<Position>();
+                    if (playerState.isSpecialAttack
+                        && (playerState.currFrame % character.sprite[playerState.state].frameCount) == character.sprite[playerState.state].frameCount / 2)
+                        createSpecialAttack(x, y, SpecialAttacks::FIREBALL, playerState.playerNumber, playerState.direction, character);
+                    else if (playerState.isJumping)
+                        createAttack(x, y, playerState.state, playerState.playerNumber, playerState.direction);
+                    else if ((playerState.currFrame % character.sprite[playerState.state].frameCount) == character.sprite[playerState.state].frameCount / 3)
+                        createAttack(x, y, playerState.state, playerState.playerNumber, playerState.direction);
+                }
             }
         }
-        // Clean up
-        delete player1Entity;
-        delete player2Entity;
+
+        // Update directions and win/lose states
+        if (foundPlayer1 && foundPlayer2) {
+            bagel::Entity player1{player1Entity};
+            bagel::Entity player2{player2Entity};
+            auto& p1State = player1.get<PlayerState>();
+            auto& p2State = player2.get<PlayerState>();
+            auto& p1Health = player1.get<Health>();
+            auto& p2Health = player2.get<Health>();
+            auto& p1Char = player1.get<Character>();
+            auto& p2Char = player2.get<Character>();
+
+            auto handleWinLose = [&](bagel::Entity& loser, bagel::Entity& winner) {
+                bool isJumping = loser.get<PlayerState>().isJumping;
+                loser.get<PlayerState>().reset();
+                loser.get<PlayerState>().state = State::GIDDY_FALL;
+                loser.get<PlayerState>().busy = true;
+                loser.get<PlayerState>().isJumping = isJumping;
+                loser.get<PlayerState>().busyFrames = loser.get<Character>().sprite[loser.get<PlayerState>().state].frameCount;
+                loser.get<PlayerState>().freezeFrame = loser.get<PlayerState>().busyFrames - 1;
+                loser.get<PlayerState>().freezeFrameDuration = 1000;
+
+                isJumping = winner.get<PlayerState>().isJumping;
+                winner.get<PlayerState>().reset();
+                winner.get<PlayerState>().state = State::WIN;
+                winner.get<PlayerState>().busy = true;
+                winner.get<PlayerState>().isJumping = isJumping;
+                winner.get<PlayerState>().busyFrames = winner.get<Character>().sprite[winner.get<PlayerState>().state].frameCount;
+                winner.get<PlayerState>().freezeFrame = winner.get<PlayerState>().busyFrames - 1;
+                winner.get<PlayerState>().freezeFrameDuration = 1000;
+            };
+
+            if (p1Health.health <= 0 && p1State.state != State::GIDDY_FALL)
+                handleWinLose(player1, player2);
+            if (p2Health.health <= 0 && p2State.state != State::GIDDY_FALL)
+                handleWinLose(player2, player1);
+
+            // Direction update
+            bool isPlayer1Direction = player1.get<Position>().x < player2.get<Position>().x ? RIGHT : LEFT;
+            bool isPlayer2Direction = !isPlayer1Direction;
+            auto updateDirection = [](bagel::Entity& player, bool newDir, const Character& character) {
+                auto& state = player.get<PlayerState>();
+                if (!state.isJumping && !state.busy && state.direction != newDir) {
+                    state.direction = newDir;
+                    state.reset();
+                    state.state = State::TURN_LEFT_TO_RIGHT;
+                    state.busy = true;
+                    state.busyFrames = character.sprite[state.state].frameCount;
+                }
+            };
+            updateDirection(player1, isPlayer1Direction, p1Char);
+            updateDirection(player2, isPlayer2Direction, p2Char);
+        }
     }
+
 
     void MK::InputSystem() {
         static const bagel::Mask mask = bagel::MaskBuilder()
