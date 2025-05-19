@@ -188,9 +188,7 @@ namespace mortal_kombat
                         {
                             movement.vx = FALL_SPEED
                                         * (playerState.direction == LEFT ? 1.0f : -1.0f);
-                            break;
                         }
-                        movement.vx = 0;
                         break;
                     default:
                         if (!playerState.isJumping)
@@ -276,6 +274,7 @@ namespace mortal_kombat
             .build();
 
         SDL_Event event;
+
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
                 exit(0);
@@ -297,11 +296,26 @@ namespace mortal_kombat
                     auto& health = entity.get<Health>();
                     auto& character = entity.get<Character>();
 
-                    flipMode = (playerState.direction == LEFT) ?
-                        SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
-
                     const int frame = (playerState.state == State::WALK_BACKWARDS)
                         ? (playerState.busyFrames - (playerState.currFrame % playerState.busyFrames)): (playerState.currFrame);
+
+                    if (health.health <= 0) {
+                        if (playerState.state != State::GIDDY_FALL) {
+                            playerState.reset();
+                            playerState.state = State::GIDDY_FALL;
+                            playerState.isLaying = true;
+                            playerState.busyFrames = character.sprite[playerState.state].frameCount;
+                            playerState.freezeFrame = playerState.busyFrames - 1;
+                            playerState.freezeFrameDuration = 1000;
+                            playerState.busy = true;
+                            WinSystem(character);
+                        }
+
+                        continue;
+                    }
+
+                    flipMode = (playerState.direction == LEFT) ?
+                        SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
 
                     texture.srcRect = getSpriteFrame(character, playerState.state, frame);
                     texture.rect.w = static_cast<float>((character.sprite[playerState.state].w)) * SCALE_CHARACTER;
@@ -353,7 +367,7 @@ namespace mortal_kombat
                 ,static_cast<float>(character.specialAttackSprite[action].h) - 2};
     }
 
-    SDL_FRect MK::getWinSpriteFrame(const Character& character, int frame)
+    SDL_FRect MK::getWinSpriteFrame(const Character& character, const int frame) const
     {
         return {static_cast<float>(character.winText.x
                     + (frame % character.winText.frameCount)
@@ -747,7 +761,7 @@ namespace mortal_kombat
 
             if (eSensor.test(maskAttack) && eBody.test(maskPlayer)
                 && eSensor.get<Attack>().attacker != eBody.get<PlayerState>().playerNumber)
-                    CombatSystem(eSensor, eBody);
+                CombatSystem(eSensor, eBody);
         }
 
         // Handle end events
@@ -777,52 +791,49 @@ namespace mortal_kombat
     }
 
     void MK::MatchSystem() {
-        // static const bagel::Mask mask = bagel::MaskBuilder()
-        //     .set<Health>()
-        //     .set<Character>()
-        //     .build();
-        //
-        // for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id)
-        // {
-        //     if (bagel::Entity entity{e}; entity.test(mask)) {
-        //         auto& health = entity.get<Health>();
-        //         auto& character = entity.get<Character>();
-        //
-        //         if (health.health <= 0) {
-        //             // Create win message
-        //             std::string winText = std::string(character.name) + " wins!";
-        //             SDL_Color white = {255, 255, 255, 255};
-        //
-        //             SDL_Texture* textTex = renderText(ren, winText, white, yourTTFfont);
-        //             if (!textTex) continue;
-        //
-        //             bagel::Entity msg = bagel::Entity::create();
-        //             msg.addAll(
-        //                 Position{WINDOW_WIDTH / 2.0f - 100, WINDOW_HEIGHT / 4.0f},
-        //                 Texture{
-        //                     textTex,
-        //                     {0, 0, 300, 50},               // Source size — match your text size
-        //                     {WINDOW_WIDTH / 2.0f - 100, WINDOW_HEIGHT / 4.0f, 300, 50}
-        //                 },
-        //                 WinMessage{winText}
-        //             );
-        //
-        //             break; // stop once one winner is declared
-        //         }
-        //     }
-        // }
+
     }
 
-    void MK::WinSystem() {
-        static const bagel::Mask mask = bagel::MaskBuilder()
-            .set<Score>()
-            .build();
-        for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id)
-        {
-            if (bagel::Entity entity{e}; entity.test(mask))
-            {
-            }
+    void MK::WinSystem(Character winCharacter) const {
+        static SDL_Texture* texture = nullptr;
+
+        const int WIN_TEXT_COLOR_IGNORE_RED = 245;
+        const int WIN_TEXT_COLOR_IGNORE_GREEN = 10;
+        const int WIN_TEXT_COLOR_IGNORE_BLUE = 237;
+
+        // Load the image as a surface
+        SDL_Surface* surface = IMG_Load("res/Menus & Text.png");
+        if (!surface) {
+            SDL_Log("Failed to load image: %s, SDL_Error: %s", "res/Menus & Text.png", SDL_GetError());
+            return;
         }
+
+        // Set the color key for the surface
+        const SDL_PixelFormatDetails *fmt = SDL_GetPixelFormatDetails(surface->format);
+
+        SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
+                                                      WIN_TEXT_COLOR_IGNORE_RED,
+                                                      WIN_TEXT_COLOR_IGNORE_GREEN,
+                                                      WIN_TEXT_COLOR_IGNORE_BLUE));
+
+        // Create a texture from the surface
+        texture = SDL_CreateTextureFromSurface(ren, surface);
+        SDL_DestroySurface(surface); // Free the surface after creating the texture
+
+        if (!texture) {
+            SDL_Log("Failed to create texture: %s, SDL_Error: %s", "res/Menus & Text.png", SDL_GetError());
+            return;
+        }
+
+        SDL_FRect srcRect = {winCharacter.winText.x, winCharacter.winText.y, winCharacter.winText.w, winCharacter.winText.h};
+        SDL_FRect dstRect = {0, 0, WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f};
+
+        SDL_RenderTexture(
+            ren,
+            texture,
+            &srcRect,
+            &dstRect
+        );
     }
 
     void MK::ClockSystem() {
@@ -1142,18 +1153,6 @@ namespace mortal_kombat
                         damage.trailingHealth = health.health;
                 }
 
-                // float trailRatio = std::max(0.0f, damage.trailingHealth / health.max_health);
-
-                // // Red bar (trailing)
-                // SDL_FRect redRect = {
-                //     pos.x, pos.y,
-                //     250.0f * trailRatio,
-                //     texture.rect.h
-                // };
-                // SDL_SetRenderDrawColor(ren, 200, 0, 0, 255);
-                // SDL_RenderFillRect(ren, &redRect);
-
-                // Green bar (current health)
                 texture.rect.w = 250.0f * ratio;
             }
         }
@@ -1541,5 +1540,45 @@ namespace mortal_kombat
         );
     }
 
+    void MK::createWinText(Character winCharacter) {
 
+        const int WIN_TEXT_COLOR_IGNORE_RED = 245;
+        const int WIN_TEXT_COLOR_IGNORE_GREEN = 10;
+        const int WIN_TEXT_COLOR_IGNORE_BLUE = 237;
+
+        // Load the image as a surface
+        SDL_Surface* surface = IMG_Load("res/Menus & Text.png");
+        if (!surface) {
+            SDL_Log("Failed to load image: %s, SDL_Error: %s", "res/Menus & Text.png", SDL_GetError());
+            return;
+        }
+
+        // Set the color key for the surface
+        const SDL_PixelFormatDetails *fmt = SDL_GetPixelFormatDetails(surface->format);
+
+        SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
+                                                      WIN_TEXT_COLOR_IGNORE_RED,
+                                                      WIN_TEXT_COLOR_IGNORE_GREEN,
+                                                      WIN_TEXT_COLOR_IGNORE_BLUE));
+
+        // Create a texture from the surface
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(ren, surface);
+        SDL_DestroySurface(surface); // Free the surface after creating the texture
+
+        if (!texture) {
+            SDL_Log("Failed to create texture: %s, SDL_Error: %s", "res/Menus & Text.png", SDL_GetError());
+            return;
+        }
+
+        // Create win text entity
+        bagel::Entity winText = bagel::Entity::create();
+        winText.addAll(
+            Position{0, 0},
+            Texture{
+                texture,
+                SDL_FRect{winCharacter.winText.x, winCharacter.winText.y},
+                          winCharacter.winText.w, winCharacter.winText.h},
+                SDL_FRect{ 0, 0, WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f }
+        );
+    }
 }
