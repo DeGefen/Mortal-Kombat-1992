@@ -73,9 +73,9 @@ namespace mortal_kombat
 
 
 
-        SDL_Renderer* ren;
-        SDL_Window* win;
-        b2WorldId boxWorld;
+        SDL_Renderer* ren{};
+        SDL_Window* win{};
+        b2WorldId boxWorld{};
 
         void prepareBoxWorld();
 
@@ -104,7 +104,8 @@ namespace mortal_kombat
             b2BodyId body = b2_nullBodyId; // Default invalid body ID
             b2ShapeId shape = b2_nullShapeId; // Default invalid shape ID
             bool isPlayerSensor = false; // Whether the collider is touching a player
-            bool isBoundarySensor = false; // Whether the collider is touching a boundary
+            bool isLeftBoundarySensor = false; // Whether the collider is touching the Left boundary
+            bool isRightBoundarySensor = false; // Whether the collider is touching a Right boundary
         };
 
         /// @brief Player_state component holds the state for the player.
@@ -178,6 +179,11 @@ namespace mortal_kombat
             static constexpr Input JUMP_PUNCH = Inputs::LOW_PUNCH | Inputs::JUMPING;
             static constexpr Input JUMP_HIGH_KICK = Inputs::HIGH_KICK | Inputs::JUMPING;
             static constexpr Input JUMP_LOW_KICK = Inputs::LOW_KICK | Inputs::JUMPING;
+            static constexpr Input JUMP_BACK_RIGHT = Inputs::UP | Inputs::LEFT | Inputs::DIRECTION_RIGHT;
+            static constexpr Input JUMP_BACK_LEFT = Inputs::UP | Inputs::RIGHT | Inputs::DIRECTION_LEFT;
+            static constexpr Input ROLL_RIGHT = Inputs::UP | Inputs::RIGHT | Inputs::DIRECTION_RIGHT;
+            static constexpr Input ROLL_LEFT = Inputs::UP | Inputs::LEFT | Inputs::DIRECTION_LEFT;
+
 
             /// @brief Checks if the input is in the most recent history has the given input's bits.
             /// @param input bit map of wanted inputs
@@ -233,7 +239,7 @@ namespace mortal_kombat
             int totalFrames = 0;
             bool explode = false;
 
-            static constexpr int SPECIAL_ATTACK_LIFE_TIME = 50;
+            static constexpr int SPECIAL_ATTACK_LIFE_TIME = 70;
         };
 
         /// @brief Character component holds the character information of the player.
@@ -269,7 +275,10 @@ namespace mortal_kombat
         };
 
         /// @brief Boundary tag component is used to identify boundary entities.
-        struct Boundary {};
+        struct Boundary
+        {
+            bool side; // true for left, false for right
+        };
 
         /// @brief DamageVisual holds a delayed representation of health for damage effect.
         struct DamageVisual {
@@ -288,20 +297,22 @@ namespace mortal_kombat
         /* =============== Systems =============== */
 
         /// @brief Updates the position of entities based on their movement components.
-        void MovementSystem();
+        static void MovementSystem();
 
+        /// @brief returns the position of the entity in the Box2D world.
         static b2Vec2 getPosition(const Position& position)
         {
             return {position.x / WINDOW_SCALE, position.y / WINDOW_SCALE};
         }
 
+        /// @brief returns the position of the entity in the Box2D world.
         static b2Vec2 getPosition(const float x, const float y)
         {
             return {x / WINDOW_SCALE, y / WINDOW_SCALE};
         }
 
         /// @brief Renders entities with position and texture components to the screen.
-        void RenderSystem();
+        void RenderSystem() const;
 
         /// @brief Returns the sprite rectangle for a given action and frame.
         /// @param character Character data for the player.
@@ -321,10 +332,10 @@ namespace mortal_kombat
                                             int frame);
 
         /// @brief Manages player-specific logic, such as state and character updates.
-        void PlayerSystem();
+        void PlayerSystem() const;
 
         /// @brief Handles collision detection and response for entities with colliders.
-        void CollisionSystem();
+        void CollisionSystem() const;
 
         /// @brief Manages match-related logic, such as health updates and round progression.
         void MatchSystem();
@@ -333,16 +344,13 @@ namespace mortal_kombat
         void WinSystem();
 
         /// @brief Updates the game clock and manages time-related logic.
-        void ClockSystem();
+        static void ClockSystem();
 
         /// @brief Processes player inputs and updates input history.
-        void InputSystem();
-
-        /// @brief Handles attack creation.
-        void AttackSystem(bagel::Entity &eAttack);
+        static void InputSystem();
 
         /// @brief Manages special attack detection.
-        int SpecialAttackSystem();
+        static void SpecialAttackSystem();
 
         /// @brief Handles combat logic, such has damage application, and player hit state.
         /// @param eAttack Entity representing the attack.
@@ -350,7 +358,7 @@ namespace mortal_kombat
         static void CombatSystem(bagel::Entity &eAttack, bagel::Entity &ePlayer);
 
         /// @brief Handles attack's entity destruction and decay logic.
-        void AttackDecaySystem();
+        static void AttackDecaySystem();
 
         /// @brief Handles and store a cache of SDL textures.
         class TextureSystem
@@ -406,7 +414,6 @@ namespace mortal_kombat
             static std::unordered_map<std::string, SDL_Texture*> textureCache;
         };
 
-
         void HealthBarSystem();
 
         /* =============== Entities =============== */
@@ -416,14 +423,14 @@ namespace mortal_kombat
         /// @param x,y Position of the entity in the game world.
         /// @param character Character data for the player.
         /// @param playerNumber Player number (1 or 2).
-        bagel::ent_type createPlayer(float x, float y, Character character, int playerNumber);
+        bagel::ent_type createPlayer(float x, float y, Character character, int playerNumber) const;
 
         /// @brief Creates an Attack entity (like a punch or kick).
         /// @param x,y Position of the entity in the game world.
         /// @param type Type of the attack.
         /// @param playerNumber Player number (1 or 2).
         /// @param direction attack direction.
-        void createAttack(float x, float y, State type, int playerNumber, bool direction);
+        void createAttack(float x, float y, State type, int playerNumber, bool direction) const;
 
         /// @brief Creates a special attack entity.
         /// @param x,y Position of the entity in the game world.
@@ -432,12 +439,11 @@ namespace mortal_kombat
         /// @param direction attack direction.
         /// @param character Character data for the player.
         void createSpecialAttack(float x, float y, SpecialAttacks type, int playerNumber,
-                                bool direction, Character& character);
+                                bool direction, Character& character) const;
 
         /// @brief Creates a static platform/boundary.
-        /// @param x,y Position of the boundary in the game world.
         /// @param side boundary side (left or right).
-        void createBoundary(float x, float y, bool side);
+        void createBoundary(bool side) const;
 
         /// @brief Creates a game info entity.
         /// @param initialTime Initial time for the game.
