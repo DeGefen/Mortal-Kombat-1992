@@ -84,8 +84,8 @@ namespace mortal_kombat
 
     struct SpriteInfo {
         int frameCount = 0;
-        int x = 0, y = 0;
-        int w = 230, h = 220;
+        float x = 0, y = 0;
+        float w = 230, h = 220;
     };
 
     template<class T, size_t SIZE>

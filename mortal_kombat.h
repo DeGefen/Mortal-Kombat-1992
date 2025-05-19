@@ -74,6 +74,7 @@ namespace mortal_kombat
 
 
         SDL_Renderer* ren{};
+        mutable SDL_Texture* winTextTexture = nullptr;
         SDL_Window* win{};
         b2WorldId boxWorld{};
 
@@ -334,6 +335,8 @@ namespace mortal_kombat
         static SDL_FRect getSpriteFrame(const Character& character, SpecialAttacks action,
                                             int frame);
 
+        SDL_FRect getWinSpriteFrame(const Character &character, int frame) const;
+
         SDL_FRect getWinSpriteFrame(const Character &character, int frame);
 
         /// @brief Manages player-specific logic, such as state and character updates.
@@ -346,7 +349,7 @@ namespace mortal_kombat
         void MatchSystem();
 
         /// @brief Determines the winner of the match based on scores.
-        void WinSystem();
+        void WinSystem(Character winCharacter) const;
 
         /// @brief Updates the game clock and manages time-related logic.
         static void ClockSystem();
@@ -459,6 +462,8 @@ namespace mortal_kombat
         inline void createBackground(std::string backgroundName);
 
         void createBar(bagel::Entity player1, bagel::Entity player2);
+
+        void createWinText(Character winCharacter);
 
         struct Characters
         {

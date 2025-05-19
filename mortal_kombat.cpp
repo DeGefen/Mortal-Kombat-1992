@@ -5,8 +5,7 @@
 #include <SDL3_image/SDL_image.h>
 #include <box2d/box2d.h>
 
-namespace mortal_kombat
-{
+namespace mortal_kombat {
     std::unordered_map<std::string, SDL_Texture*> MK::TextureSystem::textureCache;
 
     MK::MK()
@@ -20,7 +19,7 @@ namespace mortal_kombat
                 "MK1992", WINDOW_WIDTH, WINDOW_HEIGHT, 0, &win, &ren)) {
             std::cout << SDL_GetError() << std::endl;
             return;
-        }
+                }
 
         SDL_SetRenderDrawColor(ren, 255,255,255,0);
 
@@ -137,64 +136,64 @@ namespace mortal_kombat
 
                     switch (playerState.state)
                     {
-                    case State::WALK_BACKWARDS:
-                        movement.vx = WALK_SPEED_BACKWARDS
+                        case State::WALK_BACKWARDS:
+                            movement.vx = WALK_SPEED_BACKWARDS
+                                            * (playerState.direction == LEFT ? 1.0f : -1.0f)
+                                            * (collider.isRightBoundarySensor && playerState.direction == LEFT ? 0.0f : 1.0f)
+                                            * (collider.isLeftBoundarySensor && playerState.direction == RIGHT ? 0.0f : 1.0f);
+
+                            break;
+                        case State::WALK_FORWARDS:
+                            movement.vx = WALK_SPEED_FORWARDS
+                                            * (playerState.direction == LEFT ? -1.0f : 1.0f)
+                                            * (collider.isPlayerSensor ? 0.0f : 1.0f)
+                                            * (collider.isRightBoundarySensor && playerState.direction == RIGHT ? 0.0f : 1.0f)
+                                            * (collider.isLeftBoundarySensor && playerState.direction == LEFT ? 0.0f : 1.0f);
+                            ;
+                            break;
+                        case State::KICKBACK_TORSO_HIT:
+                            movement.vx = KICKBACK_SPEED
+                                            * (playerState.direction == LEFT ? 1.0f : -1.0f);
+                            break;
+                        case State::JUMP:
+                            if (!playerState.isJumping) {
+                                playerState.isJumping = true;
+                                movement.vy = JUMP_INITIAL_VELOCITY;
+                            }
+                            movement.vx = 0; // Vertical jump - no horizontal movement
+                            break;
+                        case State::JUMP_BACK:
+                            if (!playerState.isJumping) {
+                                playerState.isJumping = true;
+                                movement.vy = JUMP_INITIAL_VELOCITY;
+                            }
+                            movement.vx = JUMP_HORIZONTAL_SPEED
                                         * (playerState.direction == LEFT ? 1.0f : -1.0f)
                                         * (collider.isRightBoundarySensor && playerState.direction == LEFT ? 0.0f : 1.0f)
                                         * (collider.isLeftBoundarySensor && playerState.direction == RIGHT ? 0.0f : 1.0f);
-
-                        break;
-                    case State::WALK_FORWARDS:
-                        movement.vx = WALK_SPEED_FORWARDS
+                            break;
+                        case State::ROLL:
+                            // Forward jump
+                            if (!playerState.isJumping) {
+                                playerState.isJumping = true;
+                                movement.vy = JUMP_INITIAL_VELOCITY;
+                            }
+                            movement.vx = JUMP_HORIZONTAL_SPEED
                                         * (playerState.direction == LEFT ? -1.0f : 1.0f)
-                                        * (collider.isPlayerSensor ? 0.0f : 1.0f)
                                         * (collider.isRightBoundarySensor && playerState.direction == RIGHT ? 0.0f : 1.0f)
                                         * (collider.isLeftBoundarySensor && playerState.direction == LEFT ? 0.0f : 1.0f);
-;
-                        break;
-                    case State::KICKBACK_TORSO_HIT:
-                        movement.vx = KICKBACK_SPEED
-                                        * (playerState.direction == LEFT ? 1.0f : -1.0f);
-                        break;
-                    case State::JUMP:
-                        if (!playerState.isJumping) {
-                            playerState.isJumping = true;
-                            movement.vy = JUMP_INITIAL_VELOCITY;
-                        }
-                        movement.vx = 0; // Vertical jump - no horizontal movement
-                        break;
-                    case State::JUMP_BACK:
-                        if (!playerState.isJumping) {
-                            playerState.isJumping = true;
-                            movement.vy = JUMP_INITIAL_VELOCITY;
-                        }
-                        movement.vx = JUMP_HORIZONTAL_SPEED
-                                    * (playerState.direction == LEFT ? 1.0f : -1.0f)
-                                    * (collider.isRightBoundarySensor && playerState.direction == LEFT ? 0.0f : 1.0f)
-                                    * (collider.isLeftBoundarySensor && playerState.direction == RIGHT ? 0.0f : 1.0f);
-                        break;
-                    case State::ROLL:
-                        // Forward jump
-                        if (!playerState.isJumping) {
-                            playerState.isJumping = true;
-                            movement.vy = JUMP_INITIAL_VELOCITY;
-                        }
-                        movement.vx = JUMP_HORIZONTAL_SPEED
-                                    * (playerState.direction == LEFT ? -1.0f : 1.0f)
-                                    * (collider.isRightBoundarySensor && playerState.direction == RIGHT ? 0.0f : 1.0f)
-                                    * (collider.isLeftBoundarySensor && playerState.direction == LEFT ? 0.0f : 1.0f);
-                        break;
-                    case State::UPPERCUT_HIT:
-                        if (playerState.currFrame < character.sprite[playerState.state].frameCount / 2)
-                        {
-                            movement.vx = FALL_SPEED
-                                        * (playerState.direction == LEFT ? 1.0f : -1.0f);
-                        }
-                        break;
-                    default:
-                        if (!playerState.isJumping)
-                            movement.reset();
-                        break;
+                            break;
+                        case State::UPPERCUT_HIT:
+                            if (playerState.currFrame < character.sprite[playerState.state].frameCount / 2)
+                            {
+                                movement.vx = FALL_SPEED
+                                            * (playerState.direction == LEFT ? 1.0f : -1.0f);
+                            }
+                            break;
+                        default:
+                            if (!playerState.isJumping)
+                                movement.reset();
+                            break;
                     }
 
                     // Apply gravity and handle jumping physics
@@ -275,6 +274,7 @@ namespace mortal_kombat
             .build();
 
         SDL_Event event;
+
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
                 exit(0);
@@ -296,21 +296,26 @@ namespace mortal_kombat
                     auto& health = entity.get<Health>();
                     auto& character = entity.get<Character>();
 
-                    if (health.health <= 0 && playerState.state != State::GIDDY_FALL) {
-                        playerState.reset();
-                        playerState.state = State::GIDDY_FALL;
-                        playerState.isLaying = true;
-                        playerState.busyFrames = character.sprite[playerState.state].frameCount;
-                        playerState.freezeFrame = playerState.busyFrames - 1;
-                        playerState.freezeFrameDuration = 1000;
-                        playerState.busy = true;
+                    const int frame = (playerState.state == State::WALK_BACKWARDS)
+                        ? (playerState.busyFrames - (playerState.currFrame % playerState.busyFrames)): (playerState.currFrame);
+
+                    if (health.health <= 0) {
+                        if (playerState.state != State::GIDDY_FALL) {
+                            playerState.reset();
+                            playerState.state = State::GIDDY_FALL;
+                            playerState.isLaying = true;
+                            playerState.busyFrames = character.sprite[playerState.state].frameCount;
+                            playerState.freezeFrame = playerState.busyFrames - 1;
+                            playerState.freezeFrameDuration = 1000;
+                            playerState.busy = true;
+                            WinSystem(character);
+                        }
+
+                        continue;
                     }
 
                     flipMode = (playerState.direction == LEFT) ?
                         SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
-
-                    const int frame = (playerState.state == State::WALK_BACKWARDS)
-                        ? (playerState.busyFrames - (playerState.currFrame % playerState.busyFrames)): (playerState.currFrame);
 
                     texture.srcRect = getSpriteFrame(character, playerState.state, frame);
                     texture.rect.w = static_cast<float>((character.sprite[playerState.state].w)) * SCALE_CHARACTER;
@@ -362,7 +367,7 @@ namespace mortal_kombat
                 ,static_cast<float>(character.specialAttackSprite[action].h) - 2};
     }
 
-    SDL_FRect MK::getWinSpriteFrame(const Character& character, int frame)
+    SDL_FRect MK::getWinSpriteFrame(const Character& character, const int frame) const
     {
         return {static_cast<float>(character.winText.x
                     + (frame % character.winText.frameCount)
@@ -380,248 +385,248 @@ namespace mortal_kombat
             .set<Character>()
             .build();
 
-            // keep players to update directions based on relative positions
-            Position player1Pos{};
-            Position player2Pos{};
-            PlayerState* player1State = nullptr;
-            PlayerState* player2State = nullptr;
-            Character* player1Character = nullptr;
-            Character* player2Character = nullptr;
+        // keep players to update directions based on relative positions
+        Position player1Pos{};
+        Position player2Pos{};
+        PlayerState* player1State = nullptr;
+        PlayerState* player2State = nullptr;
+        Character* player1Character = nullptr;
+        Character* player2Character = nullptr;
 
 
-            for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id)
+        for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id)
+        {
+            if (bagel::Entity entity{e}; entity.test(mask))
             {
-                if (bagel::Entity entity{e}; entity.test(mask))
+                const auto& inputs = entity.get<Inputs>();
+                auto& playerState = entity.get<PlayerState>();
+                auto& character = entity.get<Character>();
+
+                State state = State::STANCE;
+                int freezeFrame = NONE;
+                int freezeFrameDuration = 0;
+                bool busy = true;
+                bool crouching = false;
+                bool attack = false;
+                bool special = false;
+                bool jumping = false;
+
+                // Handles special attacks
+                for (int i = 0; i < Character::SPECIAL_ATTACKS_COUNT && !special; ++i)
                 {
-                    const auto& inputs = entity.get<Inputs>();
-                    auto& playerState = entity.get<PlayerState>();
-                    auto& character = entity.get<Character>();
-
-                    State state = State::STANCE;
-                    int freezeFrame = NONE;
-                    int freezeFrameDuration = 0;
-                    bool busy = true;
-                    bool crouching = false;
-                    bool attack = false;
-                    bool special = false;
-                    bool jumping = false;
-
-                    // Handles special attacks
-                    for (int i = 0; i < Character::SPECIAL_ATTACKS_COUNT && !special; ++i)
+                    if (inputs == character.specialAttacks[i]
+                        || inputs == character.specialAttacks[i + 1])
                     {
-                        if (inputs == character.specialAttacks[i]
-                            || inputs == character.specialAttacks[i + 1])
-                        {
-                            state = static_cast<State>(i + static_cast<int>(State::SPECIAL_1));
-                            attack = true;
-                            special = true;
-                        }
-                    }
-
-                    if (!special)
-                    {
-                        if (inputs == Inputs::JUMP_PUNCH)
-                        {
-                            state = State::JUMP_PUNCH;
-                            freezeFrame = character.sprite[state].frameCount - 1;
-                            attack = true;
-                            jumping = true;
-                        }
-                        else if (inputs == Inputs::JUMP_LOW_KICK)
-                        {
-                            state = State::JUMP_LOW_KICK;
-                            freezeFrame = character.sprite[state].frameCount - 1;
-                            attack = true;
-                            jumping = true;
-                        }
-                        else if (inputs == Inputs::JUMP_HIGH_KICK)
-                        {
-                            state = State::JUMP_HIGH_KICK;
-                            freezeFrame = character.sprite[state].frameCount - 1;
-                            attack = true;
-                            jumping = true;
-                        }
-                        else if (inputs == Inputs::CROUCH_BLOCK)
-                        {
-                            state = State::CROUCH_BLOCK;
-                            freezeFrame = character.sprite[state].frameCount / 2 + 1;
-                            freezeFrameDuration = 1;
-                            crouching = true;
-                        }
-                        else if (inputs == Inputs::BLOCK)
-                        {
-                            state = State::BLOCK;
-                            freezeFrame = character.sprite[state].frameCount / 2 + 1;
-                            freezeFrameDuration = 1;
-                        }
-                        else if (inputs == Inputs::CROUCH_KICK)
-                        {
-                            state = State::CROUCH_KICK;
-                            crouching = true;
-                            attack = true;
-                        }
-                        else if (inputs == Inputs::JUMP_BACK_RIGHT
-                                || inputs == Inputs::JUMP_BACK_LEFT)
-                        {
-                            state = State::JUMP_BACK;
-                            busy = false;
-                        }
-                        else if (inputs == Inputs::ROLL_RIGHT
-                                || inputs == Inputs::ROLL_LEFT)
-                        {
-                            state = State::ROLL;
-                            busy = false;
-                        }
-                        else if (inputs == Inputs::UP)
-                        {
-                            state = State::JUMP;
-                            busy = false;
-                        }
-                        else if (inputs == Inputs::HIGH_SWEEP_KICK_LEFT
-                                || inputs == Inputs::HIGH_SWEEP_KICK_RIGHT)
-                        {
-                            state = State::HIGH_SWEEP_KICK;
-                            attack = true;
-                        }
-                        else if (inputs == Inputs::LOW_SWEEP_KICK_LEFT
-                                || inputs == Inputs::LOW_SWEEP_KICK_RIGHT)
-                        {
-                            state = State::LOW_SWEEP_KICK;
-                            attack = true;
-                        }
-                        else if (inputs == Inputs::UPPERCUT)
-                        {
-                            state = State::UPPERCUT;
-                            crouching = true;
-                            attack = true;
-                        }
-                        else if (inputs == Inputs::DOWN)
-                        {
-                            state = State::CROUCH;
-                            freezeFrame = (character.sprite[state].frameCount / 2) + 1;
-                            freezeFrameDuration = 1;
-                            crouching = true;
-                        }
-                        else if (inputs == Inputs::LOW_PUNCH)
-                        {
-                            state = State::LOW_PUNCH;
-                            attack = true;
-                        }
-                        else if (inputs == Inputs::HIGH_PUNCH)
-                        {
-                            state = State::HIGH_PUNCH;
-                            attack = true;
-                        }
-                        else if (inputs == Inputs::LOW_KICK)
-                        {
-                            state = State::LOW_KICK;
-                            attack = true;
-                        }
-                        else if (inputs == Inputs::HIGH_KICK)
-                        {
-                            state = State::HIGH_KICK;
-                            attack = true;
-                        }
-                        else if (inputs == Inputs::WALK_BACKWARDS_RIGHT
-                                || inputs == Inputs::WALK_BACKWARDS_LEFT)
-                        {
-                            state = State::WALK_BACKWARDS;
-                            busy = false;
-                        }
-                        else if (inputs == Inputs::WALK_FORWARDS_RIGHT
-                                || inputs == Inputs::WALK_FORWARDS_LEFT)
-                        {
-                            state = State::WALK_FORWARDS;
-                            busy = false;
-                        }
-                        else
-                        {
-                            state = State::STANCE;
-                            busy = false;
-                        }
-                    }
-
-                    // Check if the player is busy and update the state accordingly
-                    if (playerState.busyFrames - 1 <= playerState.currFrame
-                        && playerState.freezeFrameDuration <= 0)
-                    {
-                        playerState.busy = false;
-                    }
-
-                    // Check if the player is laying and not busy
-                    // -> if so get up
-                    if (playerState.isLaying && !playerState.busy)
-                    {
-                        playerState.reset();
-                        playerState.state = State::GETUP;
-                        playerState.busyFrames = character.sprite[playerState.state].frameCount;
-                        playerState.busy = true;
-                    }
-
-                    // Check if the player is in a different state and update accordingly
-                    if (((!playerState.busy && (state != playerState.state || attack))
-                        || (playerState.state == State::CROUCH && crouching && state != State::CROUCH))
-                        && (!playerState.isJumping || jumping))
-                    {
-                        playerState.reset();
-                        playerState.state = state;
-                        playerState.currFrame = (playerState.isCrouching && state == State::CROUCH) ? 2 : 0;
-                        playerState.busyFrames = character.sprite[playerState.state].frameCount;
-                        playerState.freezeFrame = freezeFrame;
-                        playerState.freezeFrameDuration = freezeFrameDuration;
-                        playerState.isJumping = jumping;
-                        playerState.isCrouching = crouching;
-                        playerState.isAttacking = attack;
-                        playerState.isSpecialAttack = special;
-                        playerState.specialAttackCooldown = special ? playerState.busyFrames * 2 : 0;
-                        playerState.busy = busy;
-                    }
-
-                    // increases duration of freeze frames if the state is the same
-                    // e.g. when the player is blocking
-                    if (playerState.freezeFrame != NONE && state == playerState.state)
-                    {
-                        ++playerState.freezeFrameDuration;
-                    }
-
-                    // Update the current frame
-                    if (playerState.freezeFrame != NONE
-                        && playerState.currFrame + 1 >= playerState.freezeFrame
-                        && playerState.freezeFrameDuration > 0)
-                    {
-                        --playerState.freezeFrameDuration;
-                        playerState.currFrame = playerState.freezeFrame;
-                    }
-                    else if (!playerState.isJumping || playerState.currFrame < playerState.busyFrames-1)
-                        ++playerState.currFrame;
-
-                    // Handles when player is attacking
-                    if (playerState.busy && playerState.isAttacking)
-                    {
-                        auto& [x, y] = entity.get<Position>();
-                        if (playerState.isSpecialAttack
-                            && (playerState.currFrame % character.sprite[playerState.state].frameCount) == character.sprite[playerState.state].frameCount / 2)
-                            createSpecialAttack(x, y, SpecialAttacks::FIREBALL,
-                                      playerState.playerNumber, playerState.direction, character);
-                        else if (playerState.isJumping)
-                            createAttack(x, y, playerState.state,
-                                      playerState.playerNumber, playerState.direction);
-                        else if ((playerState.currFrame % character.sprite[playerState.state].frameCount) == character.sprite[playerState.state].frameCount / 3)
-                            createAttack(x, y, playerState.state,
-                                      playerState.playerNumber, playerState.direction);
-                    }
-
-                    if (playerState.playerNumber == 1) {
-                        player1Pos = entity.get<Position>();
-                        player1State = &playerState;
-                        player1Character = &character;
-                    } else if (playerState.playerNumber == 2) {
-                        player2Pos = entity.get<Position>();
-                        player2State = &playerState;
-                        player2Character = &character;
+                        state = static_cast<State>(i + static_cast<int>(State::SPECIAL_1));
+                        attack = true;
+                        special = true;
                     }
                 }
+
+                if (!special)
+                {
+                    if (inputs == Inputs::JUMP_PUNCH)
+                    {
+                        state = State::JUMP_PUNCH;
+                        freezeFrame = character.sprite[state].frameCount - 1;
+                        attack = true;
+                        jumping = true;
+                    }
+                    else if (inputs == Inputs::JUMP_LOW_KICK)
+                    {
+                        state = State::JUMP_LOW_KICK;
+                        freezeFrame = character.sprite[state].frameCount - 1;
+                        attack = true;
+                        jumping = true;
+                    }
+                    else if (inputs == Inputs::JUMP_HIGH_KICK)
+                    {
+                        state = State::JUMP_HIGH_KICK;
+                        freezeFrame = character.sprite[state].frameCount - 1;
+                        attack = true;
+                        jumping = true;
+                    }
+                    else if (inputs == Inputs::CROUCH_BLOCK)
+                    {
+                        state = State::CROUCH_BLOCK;
+                        freezeFrame = character.sprite[state].frameCount / 2 + 1;
+                        freezeFrameDuration = 1;
+                        crouching = true;
+                    }
+                    else if (inputs == Inputs::BLOCK)
+                    {
+                        state = State::BLOCK;
+                        freezeFrame = character.sprite[state].frameCount / 2 + 1;
+                        freezeFrameDuration = 1;
+                    }
+                    else if (inputs == Inputs::CROUCH_KICK)
+                    {
+                        state = State::CROUCH_KICK;
+                        crouching = true;
+                        attack = true;
+                    }
+                    else if (inputs == Inputs::JUMP_BACK_RIGHT
+                            || inputs == Inputs::JUMP_BACK_LEFT)
+                    {
+                        state = State::JUMP_BACK;
+                        busy = false;
+                    }
+                    else if (inputs == Inputs::ROLL_RIGHT
+                            || inputs == Inputs::ROLL_LEFT)
+                    {
+                        state = State::ROLL;
+                        busy = false;
+                    }
+                    else if (inputs == Inputs::UP)
+                    {
+                        state = State::JUMP;
+                        busy = false;
+                    }
+                    else if (inputs == Inputs::HIGH_SWEEP_KICK_LEFT
+                            || inputs == Inputs::HIGH_SWEEP_KICK_RIGHT)
+                    {
+                        state = State::HIGH_SWEEP_KICK;
+                        attack = true;
+                    }
+                    else if (inputs == Inputs::LOW_SWEEP_KICK_LEFT
+                            || inputs == Inputs::LOW_SWEEP_KICK_RIGHT)
+                    {
+                        state = State::LOW_SWEEP_KICK;
+                        attack = true;
+                    }
+                    else if (inputs == Inputs::UPPERCUT)
+                    {
+                        state = State::UPPERCUT;
+                        crouching = true;
+                        attack = true;
+                    }
+                    else if (inputs == Inputs::DOWN)
+                    {
+                        state = State::CROUCH;
+                        freezeFrame = (character.sprite[state].frameCount / 2) + 1;
+                        freezeFrameDuration = 1;
+                        crouching = true;
+                    }
+                    else if (inputs == Inputs::LOW_PUNCH)
+                    {
+                        state = State::LOW_PUNCH;
+                        attack = true;
+                    }
+                    else if (inputs == Inputs::HIGH_PUNCH)
+                    {
+                        state = State::HIGH_PUNCH;
+                        attack = true;
+                    }
+                    else if (inputs == Inputs::LOW_KICK)
+                    {
+                        state = State::LOW_KICK;
+                        attack = true;
+                    }
+                    else if (inputs == Inputs::HIGH_KICK)
+                    {
+                        state = State::HIGH_KICK;
+                        attack = true;
+                    }
+                    else if (inputs == Inputs::WALK_BACKWARDS_RIGHT
+                            || inputs == Inputs::WALK_BACKWARDS_LEFT)
+                    {
+                        state = State::WALK_BACKWARDS;
+                        busy = false;
+                    }
+                    else if (inputs == Inputs::WALK_FORWARDS_RIGHT
+                            || inputs == Inputs::WALK_FORWARDS_LEFT)
+                    {
+                        state = State::WALK_FORWARDS;
+                        busy = false;
+                    }
+                    else
+                    {
+                        state = State::STANCE;
+                        busy = false;
+                    }
+                }
+
+                // Check if the player is busy and update the state accordingly
+                if (playerState.busyFrames - 1 <= playerState.currFrame
+                    && playerState.freezeFrameDuration <= 0)
+                {
+                    playerState.busy = false;
+                }
+
+                // Check if the player is laying and not busy
+                // -> if so get up
+                if (playerState.isLaying && !playerState.busy)
+                {
+                    playerState.reset();
+                    playerState.state = State::GETUP;
+                    playerState.busyFrames = character.sprite[playerState.state].frameCount;
+                    playerState.busy = true;
+                }
+
+                // Check if the player is in a different state and update accordingly
+                if (((!playerState.busy && (state != playerState.state || attack))
+                    || (playerState.state == State::CROUCH && crouching && state != State::CROUCH))
+                    && (!playerState.isJumping || jumping))
+                {
+                    playerState.reset();
+                    playerState.state = state;
+                    playerState.currFrame = (playerState.isCrouching && state == State::CROUCH) ? 2 : 0;
+                    playerState.busyFrames = character.sprite[playerState.state].frameCount;
+                    playerState.freezeFrame = freezeFrame;
+                    playerState.freezeFrameDuration = freezeFrameDuration;
+                    playerState.isJumping = jumping;
+                    playerState.isCrouching = crouching;
+                    playerState.isAttacking = attack;
+                    playerState.isSpecialAttack = special;
+                    playerState.specialAttackCooldown = special ? playerState.busyFrames * 2 : 0;
+                    playerState.busy = busy;
+                }
+
+                // increases duration of freeze frames if the state is the same
+                // e.g. when the player is blocking
+                if (playerState.freezeFrame != NONE && state == playerState.state)
+                {
+                    ++playerState.freezeFrameDuration;
+                }
+
+                // Update the current frame
+                if (playerState.freezeFrame != NONE
+                    && playerState.currFrame + 1 >= playerState.freezeFrame
+                    && playerState.freezeFrameDuration > 0)
+                {
+                    --playerState.freezeFrameDuration;
+                    playerState.currFrame = playerState.freezeFrame;
+                }
+                else if (!playerState.isJumping || playerState.currFrame < playerState.busyFrames-1)
+                    ++playerState.currFrame;
+
+                // Handles when player is attacking
+                if (playerState.busy && playerState.isAttacking)
+                {
+                    auto& [x, y] = entity.get<Position>();
+                    if (playerState.isSpecialAttack
+                        && (playerState.currFrame % character.sprite[playerState.state].frameCount) == character.sprite[playerState.state].frameCount / 2)
+                        createSpecialAttack(x, y, SpecialAttacks::FIREBALL,
+                                  playerState.playerNumber, playerState.direction, character);
+                    else if (playerState.isJumping)
+                        createAttack(x, y, playerState.state,
+                                  playerState.playerNumber, playerState.direction);
+                    else if ((playerState.currFrame % character.sprite[playerState.state].frameCount) == character.sprite[playerState.state].frameCount / 3)
+                        createAttack(x, y, playerState.state,
+                                  playerState.playerNumber, playerState.direction);
+                }
+
+                if (playerState.playerNumber == 1) {
+                    player1Pos = entity.get<Position>();
+                    player1State = &playerState;
+                    player1Character = &character;
+                } else if (playerState.playerNumber == 2) {
+                    player2Pos = entity.get<Position>();
+                    player2State = &playerState;
+                    player2Character = &character;
+                }
             }
+        }
 
 
         // Update directions based on relative positions
@@ -747,7 +752,7 @@ namespace mortal_kombat
 
             if (eSensor.test(maskAttack) && eBody.test(maskPlayer)
                 && eSensor.get<Attack>().attacker != eBody.get<PlayerState>().playerNumber)
-                    CombatSystem(eSensor, eBody);
+                CombatSystem(eSensor, eBody);
         }
 
         // Handle end events
@@ -777,52 +782,49 @@ namespace mortal_kombat
     }
 
     void MK::MatchSystem() {
-        // static const bagel::Mask mask = bagel::MaskBuilder()
-        //     .set<Health>()
-        //     .set<Character>()
-        //     .build();
-        //
-        // for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id)
-        // {
-        //     if (bagel::Entity entity{e}; entity.test(mask)) {
-        //         auto& health = entity.get<Health>();
-        //         auto& character = entity.get<Character>();
-        //
-        //         if (health.health <= 0) {
-        //             // Create win message
-        //             std::string winText = std::string(character.name) + " wins!";
-        //             SDL_Color white = {255, 255, 255, 255};
-        //
-        //             SDL_Texture* textTex = renderText(ren, winText, white, yourTTFfont);
-        //             if (!textTex) continue;
-        //
-        //             bagel::Entity msg = bagel::Entity::create();
-        //             msg.addAll(
-        //                 Position{WINDOW_WIDTH / 2.0f - 100, WINDOW_HEIGHT / 4.0f},
-        //                 Texture{
-        //                     textTex,
-        //                     {0, 0, 300, 50},               // Source size — match your text size
-        //                     {WINDOW_WIDTH / 2.0f - 100, WINDOW_HEIGHT / 4.0f, 300, 50}
-        //                 },
-        //                 WinMessage{winText}
-        //             );
-        //
-        //             break; // stop once one winner is declared
-        //         }
-        //     }
-        // }
+
     }
 
-    void MK::WinSystem() {
-        static const bagel::Mask mask = bagel::MaskBuilder()
-            .set<Score>()
-            .build();
-        for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id)
-        {
-            if (bagel::Entity entity{e}; entity.test(mask))
-            {
-            }
+    void MK::WinSystem(Character winCharacter) const {
+        static SDL_Texture* texture = nullptr;
+
+        const int WIN_TEXT_COLOR_IGNORE_RED = 245;
+        const int WIN_TEXT_COLOR_IGNORE_GREEN = 10;
+        const int WIN_TEXT_COLOR_IGNORE_BLUE = 237;
+
+        // Load the image as a surface
+        SDL_Surface* surface = IMG_Load("res/Menus & Text.png");
+        if (!surface) {
+            SDL_Log("Failed to load image: %s, SDL_Error: %s", "res/Menus & Text.png", SDL_GetError());
+            return;
         }
+
+        // Set the color key for the surface
+        const SDL_PixelFormatDetails *fmt = SDL_GetPixelFormatDetails(surface->format);
+
+        SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
+                                                      WIN_TEXT_COLOR_IGNORE_RED,
+                                                      WIN_TEXT_COLOR_IGNORE_GREEN,
+                                                      WIN_TEXT_COLOR_IGNORE_BLUE));
+
+        // Create a texture from the surface
+        texture = SDL_CreateTextureFromSurface(ren, surface);
+        SDL_DestroySurface(surface); // Free the surface after creating the texture
+
+        if (!texture) {
+            SDL_Log("Failed to create texture: %s, SDL_Error: %s", "res/Menus & Text.png", SDL_GetError());
+            return;
+        }
+
+        SDL_FRect srcRect = {winCharacter.winText.x, winCharacter.winText.y, winCharacter.winText.w, winCharacter.winText.h};
+        SDL_FRect dstRect = {0, 0, WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f};
+
+        SDL_RenderTexture(
+            ren,
+            texture,
+            &srcRect,
+            &dstRect
+        );
     }
 
     void MK::ClockSystem() {
@@ -1142,18 +1144,6 @@ namespace mortal_kombat
                         damage.trailingHealth = health.health;
                 }
 
-                // float trailRatio = std::max(0.0f, damage.trailingHealth / health.max_health);
-
-                // // Red bar (trailing)
-                // SDL_FRect redRect = {
-                //     pos.x, pos.y,
-                //     250.0f * trailRatio,
-                //     texture.rect.h
-                // };
-                // SDL_SetRenderDrawColor(ren, 200, 0, 0, 255);
-                // SDL_RenderFillRect(ren, &redRect);
-
-                // Green bar (current health)
                 texture.rect.w = 250.0f * ratio;
             }
         }
@@ -1204,158 +1194,158 @@ namespace mortal_kombat
             return entity.entity();
         }
 
-        void MK::createAttack(float x, float y, State type, int playerNumber, bool direction) const
+    void MK::createAttack(float x, float y, State type, int playerNumber, bool direction) const
+    {
+
+        float width = 0.0f;
+        float height = 0.0f;
+        float xOffset = 0.0f;
+        float yOffset = 0.0f;
+
+        switch (type)
         {
-
-            float width = 0.0f;
-            float height = 0.0f;
-            float xOffset = 0.0f;
-            float yOffset = 0.0f;
-
-            switch (type)
-            {
-                case State::FORWARD_JUMP_PUNCH:
-                case State::JUMP_PUNCH:
-                case State::JUMP_LOW_KICK:
-                case State::JUMP_HIGH_KICK:
-                case State::LOW_PUNCH:
-                case State::HIGH_PUNCH:
-                    width = 70.0f;
-                    height = 40.0f;
-                    xOffset = width / 2.0f * (direction == LEFT ? -1.0f : 1.0f);
-                    yOffset = 40.0f;
-                    break;
-                case State::LOW_KICK:
-                case State::HIGH_KICK:
-                    width = 95.0f;
-                    height = 40.0f;
-                    xOffset = width / 2.0f * (direction == LEFT ? -1.0f : 1.0f);
-                    yOffset = 0.0f;
-                    break;
-                case State::HIGH_SWEEP_KICK:
-                    width = 95.0f;
-                    height = 40.0f;
-                    xOffset = width / 2.0f * (direction == LEFT ? -1.0f : 1.0f);
-                    yOffset = 40.0f;
-                    break;
-                case State::CROUCH_KICK:
-                case State::LOW_SWEEP_KICK:
-                    width = 85.0f;
-                    height = 40.0f;
-                    xOffset = width / 2.0f * (direction == LEFT ? -1.0f : 1.0f);
-                    yOffset = -40.0f;
-                    break;
-                case State::UPPERCUT:
-                    width = 50.0f;
-                    height = 40.0f;
-                    xOffset = width / 2.0f * (direction == LEFT ? -1.0f : 1.0f);
-                    yOffset = 40.0f;
-                    break;
-                default: // Type is not a valid attack
-                    return;
-            }
-
-            b2BodyDef bodyDef = b2DefaultBodyDef();
-            bodyDef.type = b2_kinematicBody;
-            bodyDef.position= getPosition(x + xOffset, y + yOffset);
-
-            b2ShapeDef shapeDef = b2DefaultShapeDef();
-            shapeDef.enableSensorEvents = true;
-            shapeDef.isSensor = true;
-
-            b2Polygon boxShape = b2MakeBox((width / 2.0f) / WINDOW_SCALE,
-                                           (height / 2.0f) / WINDOW_SCALE);
-
-            b2BodyId body = b2CreateBody(boxWorld, &bodyDef);
-            b2ShapeId shape = b2CreatePolygonShape(body, &shapeDef, &boxShape);
-
-            bagel::Entity entity = bagel::Entity::create();
-            entity.addAll(Position{x, y},
-                          Collider{body, shape},
-                          Attack{type, playerNumber},
-                          Time{Attack::ATTACK_LIFE_TIME});
-
-            b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
+            case State::FORWARD_JUMP_PUNCH:
+            case State::JUMP_PUNCH:
+            case State::JUMP_LOW_KICK:
+            case State::JUMP_HIGH_KICK:
+            case State::LOW_PUNCH:
+            case State::HIGH_PUNCH:
+                width = 70.0f;
+                height = 40.0f;
+                xOffset = width / 2.0f * (direction == LEFT ? -1.0f : 1.0f);
+                yOffset = 40.0f;
+                break;
+            case State::LOW_KICK:
+            case State::HIGH_KICK:
+                width = 95.0f;
+                height = 40.0f;
+                xOffset = width / 2.0f * (direction == LEFT ? -1.0f : 1.0f);
+                yOffset = 0.0f;
+                break;
+            case State::HIGH_SWEEP_KICK:
+                width = 95.0f;
+                height = 40.0f;
+                xOffset = width / 2.0f * (direction == LEFT ? -1.0f : 1.0f);
+                yOffset = 40.0f;
+                break;
+            case State::CROUCH_KICK:
+            case State::LOW_SWEEP_KICK:
+                width = 85.0f;
+                height = 40.0f;
+                xOffset = width / 2.0f * (direction == LEFT ? -1.0f : 1.0f);
+                yOffset = -40.0f;
+                break;
+            case State::UPPERCUT:
+                width = 50.0f;
+                height = 40.0f;
+                xOffset = width / 2.0f * (direction == LEFT ? -1.0f : 1.0f);
+                yOffset = 40.0f;
+                break;
+            default: // Type is not a valid attack
+                return;
         }
 
+        b2BodyDef bodyDef = b2DefaultBodyDef();
+        bodyDef.type = b2_kinematicBody;
+        bodyDef.position= getPosition(x + xOffset, y + yOffset);
 
-        void MK::createSpecialAttack(float x, float y, SpecialAttacks type, int playerNumber,
-                                    bool direction, Character& character) const
+        b2ShapeDef shapeDef = b2DefaultShapeDef();
+        shapeDef.enableSensorEvents = true;
+        shapeDef.isSensor = true;
+
+        b2Polygon boxShape = b2MakeBox((width / 2.0f) / WINDOW_SCALE,
+                                       (height / 2.0f) / WINDOW_SCALE);
+
+        b2BodyId body = b2CreateBody(boxWorld, &bodyDef);
+        b2ShapeId shape = b2CreatePolygonShape(body, &shapeDef, &boxShape);
+
+        bagel::Entity entity = bagel::Entity::create();
+        entity.addAll(Position{x, y},
+                      Collider{body, shape},
+                      Attack{type, playerNumber},
+                      Time{Attack::ATTACK_LIFE_TIME});
+
+        b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
+    }
+
+
+    void MK::createSpecialAttack(float x, float y, SpecialAttacks type, int playerNumber,
+                                bool direction, Character& character) const
+    {
+        // Construct the texture path
+        std::string texturePath = "res/" + std::string(character.name) + ".png";
+        auto texture = TextureSystem::getTexture(ren, texturePath, true);
+
+        b2BodyDef bodyDef = b2DefaultBodyDef();
+        bodyDef.type = b2_kinematicBody;
+        bodyDef.position= getPosition(x, y + CHARACTER_HEIGHT / 2.0f);
+
+        b2ShapeDef shapeDef = b2DefaultShapeDef();
+        shapeDef.enableSensorEvents = true;
+        shapeDef.isSensor = true;
+
+        b2Polygon boxShape = b2MakeBox((character.specialAttackSprite[type].h / 2.0f) / WINDOW_SCALE,
+                                     (character.specialAttackSprite[type].w / 2.0f) / WINDOW_SCALE);
+
+        b2BodyId body = b2CreateBody(boxWorld, &bodyDef);
+        b2ShapeId shape = b2CreatePolygonShape(body, &shapeDef, &boxShape);
+
+        State state;
+        switch (type)
         {
-            // Construct the texture path
-            std::string texturePath = "res/" + std::string(character.name) + ".png";
-            auto texture = TextureSystem::getTexture(ren, texturePath, true);
-
-            b2BodyDef bodyDef = b2DefaultBodyDef();
-            bodyDef.type = b2_kinematicBody;
-            bodyDef.position= getPosition(x, y + CHARACTER_HEIGHT / 2.0f);
-
-            b2ShapeDef shapeDef = b2DefaultShapeDef();
-            shapeDef.enableSensorEvents = true;
-            shapeDef.isSensor = true;
-
-            b2Polygon boxShape = b2MakeBox((character.specialAttackSprite[type].h / 2.0f) / WINDOW_SCALE,
-                                         (character.specialAttackSprite[type].w / 2.0f) / WINDOW_SCALE);
-
-            b2BodyId body = b2CreateBody(boxWorld, &bodyDef);
-            b2ShapeId shape = b2CreatePolygonShape(body, &shapeDef, &boxShape);
-
-            State state;
-            switch (type)
-            {
-                case SpecialAttacks::FIREBALL:
-                    state = State::SPECIAL_1;
-                    break;
-                    // add more special attacks here
-                default:
-                    return; // Invalid special attack type
-            }
-
-            // Add components to the entity
-            bagel::Entity entity = bagel::Entity::create();
-            entity.addAll(Position{x + ((CHAR_SQUARE_WIDTH / 2.0f) * SCALE_CHARACTER),
-                                    y + ((character.specialAttackOffset_y - (character.specialAttackSprite[type].h / 2.0f)) * SCALE_CHARACTER)},
-                       Movement{(direction == LEFT) ? -15.0f : 15.0f, 0},
-                       Collider{body, shape},
-                       Texture{texture},
-                       Attack{state, playerNumber},
-                       SpecialAttack{type, direction},
-                       character,
-                       Time{SpecialAttack::SPECIAL_ATTACK_LIFE_TIME});
-
-            b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
+            case SpecialAttacks::FIREBALL:
+                state = State::SPECIAL_1;
+                break;
+                // add more special attacks here
+            default:
+                return; // Invalid special attack type
         }
 
-        void MK::createBoundary(bool side) const
+        // Add components to the entity
+        bagel::Entity entity = bagel::Entity::create();
+        entity.addAll(Position{x + ((CHAR_SQUARE_WIDTH / 2.0f) * SCALE_CHARACTER),
+                                y + ((character.specialAttackOffset_y - (character.specialAttackSprite[type].h / 2.0f)) * SCALE_CHARACTER)},
+                   Movement{(direction == LEFT) ? -15.0f : 15.0f, 0},
+                   Collider{body, shape},
+                   Texture{texture},
+                   Attack{state, playerNumber},
+                   SpecialAttack{type, direction},
+                   character,
+                   Time{SpecialAttack::SPECIAL_ATTACK_LIFE_TIME});
+
+        b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
+    }
+
+    void MK::createBoundary(bool side) const
+    {
+        b2BodyDef bodyDef = b2DefaultBodyDef();
+        bodyDef.type = b2_staticBody;
+        if (side == LEFT)
         {
-            b2BodyDef bodyDef = b2DefaultBodyDef();
-            bodyDef.type = b2_staticBody;
-            if (side == LEFT)
-            {
-                bodyDef.position= getPosition(BOUNDARY_WIDTH / -1.2f, WINDOW_HEIGHT / 2.0f);
-            }
-            else
-            {
-                bodyDef.position= getPosition(WINDOW_WIDTH + (BOUNDARY_WIDTH / 6.5f), WINDOW_HEIGHT / 2.0f);
-            }
-
-            b2ShapeDef shapeDef = b2DefaultShapeDef();
-            shapeDef.enableSensorEvents = true;
-            shapeDef.isSensor = true;
-
-            b2Polygon boxShape = b2MakeBox(BOUNDARY_WIDTH / 2.0f / WINDOW_SCALE,
-                                            WINDOW_HEIGHT / 2.0f / WINDOW_SCALE);
-
-            b2BodyId body = b2CreateBody(boxWorld, &bodyDef);
-            b2ShapeId shape = b2CreatePolygonShape(body, &shapeDef, &boxShape);
-
-            bagel::Entity entity = bagel::Entity::create();
-
-            entity.addAll(Collider{body, shape},
-                          Boundary{side});
-
-            b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
+            bodyDef.position= getPosition(BOUNDARY_WIDTH / -1.2f, WINDOW_HEIGHT / 2.0f);
         }
+        else
+        {
+            bodyDef.position= getPosition(WINDOW_WIDTH + (BOUNDARY_WIDTH / 6.5f), WINDOW_HEIGHT / 2.0f);
+        }
+
+        b2ShapeDef shapeDef = b2DefaultShapeDef();
+        shapeDef.enableSensorEvents = true;
+        shapeDef.isSensor = true;
+
+        b2Polygon boxShape = b2MakeBox(BOUNDARY_WIDTH / 2.0f / WINDOW_SCALE,
+                                        WINDOW_HEIGHT / 2.0f / WINDOW_SCALE);
+
+        b2BodyId body = b2CreateBody(boxWorld, &bodyDef);
+        b2ShapeId shape = b2CreatePolygonShape(body, &shapeDef, &boxShape);
+
+        bagel::Entity entity = bagel::Entity::create();
+
+        entity.addAll(Collider{body, shape},
+                      Boundary{side});
+
+        b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
+    }
 
     void MK::createGameInfo(float initialTime) {
         bagel::Entity entity = bagel::Entity::create();
@@ -1577,5 +1567,45 @@ namespace mortal_kombat
         );
     }
 
+    void MK::createWinText(Character winCharacter) {
 
+        const int WIN_TEXT_COLOR_IGNORE_RED = 245;
+        const int WIN_TEXT_COLOR_IGNORE_GREEN = 10;
+        const int WIN_TEXT_COLOR_IGNORE_BLUE = 237;
+
+        // Load the image as a surface
+        SDL_Surface* surface = IMG_Load("res/Menus & Text.png");
+        if (!surface) {
+            SDL_Log("Failed to load image: %s, SDL_Error: %s", "res/Menus & Text.png", SDL_GetError());
+            return;
+        }
+
+        // Set the color key for the surface
+        const SDL_PixelFormatDetails *fmt = SDL_GetPixelFormatDetails(surface->format);
+
+        SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
+                                                      WIN_TEXT_COLOR_IGNORE_RED,
+                                                      WIN_TEXT_COLOR_IGNORE_GREEN,
+                                                      WIN_TEXT_COLOR_IGNORE_BLUE));
+
+        // Create a texture from the surface
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(ren, surface);
+        SDL_DestroySurface(surface); // Free the surface after creating the texture
+
+        if (!texture) {
+            SDL_Log("Failed to create texture: %s, SDL_Error: %s", "res/Menus & Text.png", SDL_GetError());
+            return;
+        }
+
+        // Create win text entity
+        bagel::Entity winText = bagel::Entity::create();
+        winText.addAll(
+            Position{0, 0},
+            Texture{
+                texture,
+                SDL_FRect{winCharacter.winText.x, winCharacter.winText.y},
+                          winCharacter.winText.w, winCharacter.winText.h},
+                SDL_FRect{ 0, 0, WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f }
+        );
+    }
 }
