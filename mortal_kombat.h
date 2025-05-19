@@ -217,6 +217,15 @@ namespace mortal_kombat
             int player2_score = 0;
         };
 
+        /// @brief DamageVisual holds a delayed representation of health for damage effect.
+        struct DamageVisual {
+            float trailingHealth = 100.0f;  // Initially equal to max health
+        };
+
+        struct HealthBarReference {
+            bagel::ent_type target;  // Reference to actual player entity
+        };
+
         /* =============== Systems =============== */
 
         /// @brief Updates the position of entities based on their movement components.
@@ -276,6 +285,8 @@ namespace mortal_kombat
         /// @brief Manages special attack logic, including damage and hitbox effects.
         void SpecialAttackSystem();
 
+        void HealthBarSystem();
+
         /* =============== Entities =============== */
         /// @brief Entity is a unique identifier for each game object.
 
@@ -283,7 +294,7 @@ namespace mortal_kombat
         /// @param x,y Position of the entity in the game world.
         /// @param character Character data for the player.
         /// @param playerNumber Player number (1 or 2).
-        void createPlayer(float x, float y, Character character, int playerNumber);
+        bagel::ent_type createPlayer(float x, float y, Character character, int playerNumber);
 
         /// @brief Creates an Attack entity (like a punch or kick).
         /// @param x,y Position of the entity in the game world.
@@ -308,6 +319,8 @@ namespace mortal_kombat
         /// @brief Creates a background entity.
         /// @param backgroundName SDL texture for the background.
         inline void createBackground(std::string backgroundName);
+
+        void createBar(bagel::Entity player1, bagel::Entity player2);
 
         struct Characters
         {

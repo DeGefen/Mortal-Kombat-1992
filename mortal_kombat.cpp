@@ -59,11 +59,12 @@ namespace mortal_kombat
 
     void MK::run()
     {
-
         createBackground("res/Background.png");
 
-        createPlayer(PLAYER_1_BASE_X, PLAYER_BASE_Y, (Characters::SUBZERO), 1);
-        createPlayer(PLAYER_2_BASE_X, PLAYER_BASE_Y, (Characters::LIU_KANG), 2);
+        bagel::Entity player1 = createPlayer(PLAYER_1_BASE_X, PLAYER_BASE_Y, Characters::SUBZERO, 1);
+        bagel::Entity player2 = createPlayer(PLAYER_2_BASE_X, PLAYER_BASE_Y, Characters::LIU_KANG, 2);
+
+        createBar(player1, player2);
 
         while (true)
         {
@@ -72,6 +73,7 @@ namespace mortal_kombat
             CollisionSystem();
             MovementSystem();
             RenderSystem();
+            HealthBarSystem();
             AttackDecaySystem();
             SDL_Delay(70);
         }
@@ -653,115 +655,168 @@ namespace mortal_kombat
         }
     }
 
-    void MK::createPlayer(float x, float y, Character character, int playerNumber) {
+    void MK::HealthBarSystem() {
+        static const bagel::Mask mask = bagel::MaskBuilder()
+            .set<HealthBarReference>()
+            .set<DamageVisual>()
+            .set<Texture>()
+            .set<Position>()
+            .build();
 
-            // Construct the texture path
-            std::string texturePath = "res/" + std::string(character.name) + ".png";
+        for (bagel::ent_type e = {0}; e.id <= bagel::World::maxId().id; ++e.id) {
+            if (bagel::Entity entity{e}; entity.test(mask)) {
 
-            // Load the image as a surface
-            SDL_Surface* surface = IMG_Load(texturePath.c_str());
-            if (!surface) {
-                SDL_Log("Failed to load image: %s, SDL_Error: %s", texturePath.c_str(), SDL_GetError());
-                return ;
+                // Use HealthBarReference to access actual player health
+                auto& reference = entity.get<HealthBarReference>();
+                if (reference.target.id == -1) continue;
+
+                bagel::Entity player = bagel::Entity{reference.target};
+                auto& health = player.get<Health>();
+
+                // Continue as usual
+                auto& damage = entity.get<DamageVisual>();
+                auto& texture = entity.get<Texture>();
+                auto& pos = entity.get<Position>();
+
+                float ratio = std::max(0.0f, health.health / health.max_health);
+
+                // Smooth trailing damage effect
+                const float TRAIL_SPEED = 0.5f;
+                if (damage.trailingHealth > health.health) {
+                    damage.trailingHealth -= TRAIL_SPEED;
+                    if (damage.trailingHealth < health.health)
+                        damage.trailingHealth = health.health;
+                }
+
+                float trailRatio = std::max(0.0f, damage.trailingHealth / health.max_health);
+
+                // Red bar (trailing)
+                SDL_FRect redRect = {
+                    pos.x, pos.y,
+                    250.0f * trailRatio,
+                    texture.rect.h
+                };
+                SDL_SetRenderDrawColor(ren, 200, 0, 0, 255);
+                SDL_RenderFillRect(ren, &redRect);
+
+                // Green bar (current health)
+                texture.rect.w = 250.0f * ratio;
             }
+        }
+    }
 
-            const SDL_PixelFormatDetails *fmt = SDL_GetPixelFormatDetails(surface->format);
 
-            SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
-                                                          COLOR_IGNORE_RED,
-                                                          COLOR_IGNORE_GREEN,
-                                                          COLOR_IGNORE_BLUE));
+    bagel::ent_type MK::createPlayer(float x, float y, Character character, int playerNumber) {
 
-            // Create a texture from the surface
-            SDL_Texture* texture = SDL_CreateTextureFromSurface(ren, surface);
-            SDL_DestroySurface(surface); // Free the surface after creating the texture
-            if (!texture) {
-                SDL_Log("Failed to create texture: %s, SDL_Error: %s", texturePath.c_str(), SDL_GetError());
-                return ;
-            }
+        // Construct the texture path
+        std::string texturePath = "res/" + std::string(character.name) + ".png";
 
-            b2BodyDef bodyDef = b2DefaultBodyDef();
-            bodyDef.type = b2_kinematicBody;
-            bodyDef.position= getPosition(x, y);
-
-            b2ShapeDef shapeDef = b2DefaultShapeDef();
-            shapeDef.enableSensorEvents = true;
-            shapeDef.isSensor = true;
-
-            b2Polygon boxShape = b2MakeBox((CHARACTER_WIDTH / 2.0f) / WINDOW_SCALE,
-                                            (CHARACTER_HEIGHT / 2.0f) / WINDOW_SCALE);
-
-            b2BodyId body = b2CreateBody(boxWorld, &bodyDef);
-            b2ShapeId shape = b2CreatePolygonShape(body, &shapeDef, &boxShape);
-
-            // Add components to the entity
-            PlayerState playerState;
-            playerState.playerNumber = playerNumber;
-            playerState.direction = (playerNumber == 1) ? PlayerState::RIGHT : PlayerState::LEFT;
-
-            bagel::Entity entity = bagel::Entity::create();
-            entity.addAll(Position{x, y},
-                          Movement{0, 0},
-                          Collider{body, shape},
-                          Texture{texture},
-                          playerState,
-                          Inputs{},
-                          character,
-                          Health{100, 100});
-
-            b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
+        // Load the image as a surface
+        SDL_Surface* surface = IMG_Load(texturePath.c_str());
+        if (!surface) {
+            SDL_Log("Failed to load image: %s, SDL_Error: %s", texturePath.c_str(), SDL_GetError());
+            return {-1};
         }
 
-        void MK::createAttack(float x, float y, State type, int playerNumber) {
+        const SDL_PixelFormatDetails *fmt = SDL_GetPixelFormatDetails(surface->format);
 
+        SDL_SetSurfaceColorKey(surface, true, SDL_MapRGB(fmt, nullptr,
+                                                      COLOR_IGNORE_RED,
+                                                      COLOR_IGNORE_GREEN,
+                                                      COLOR_IGNORE_BLUE));
 
-            b2BodyDef bodyDef = b2DefaultBodyDef();
-            bodyDef.type = b2_kinematicBody;
-            bodyDef.position = getPosition(x, y);
-
-            b2ShapeDef shapeDef = b2DefaultShapeDef();
-            shapeDef.enableSensorEvents = true;
-            shapeDef.isSensor = true;
-
-            b2Polygon boxShape = b2MakeBox((CHARACTER_WIDTH / 2.0f) / WINDOW_SCALE,
-                                           (CHARACTER_HEIGHT / 2.0f) / WINDOW_SCALE);
-
-            b2BodyId body = b2CreateBody(boxWorld, &bodyDef);
-            b2ShapeId shape = b2CreatePolygonShape(body, &shapeDef, &boxShape);
-
-            bagel::Entity entity = bagel::Entity::create();
-            entity.addAll(Position{x, y},
-                          Collider{body, shape},
-                          Attack{type, playerNumber},
-                          Time{});
-
-            b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
+        // Create a texture from the surface
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(ren, surface);
+        SDL_DestroySurface(surface); // Free the surface after creating the texture
+        if (!texture) {
+            SDL_Log("Failed to create texture: %s, SDL_Error: %s", texturePath.c_str(), SDL_GetError());
+            return {-1};
         }
 
-        void MK::createSpecialAttack(float x, float y, SpecialAttackType type) {
-            bagel::Entity entity = bagel::Entity::create();
+        b2BodyDef bodyDef = b2DefaultBodyDef();
+        bodyDef.type = b2_kinematicBody;
+        bodyDef.position= getPosition(x, y);
 
-            entity.addAll(Position{x, y},
-                          Collider{},
-                          SpecialAttack{type, 0.0f, 0.0f, 0, 0.0f, 0.0f});
-        }
+        b2ShapeDef shapeDef = b2DefaultShapeDef();
+        shapeDef.enableSensorEvents = true;
+        shapeDef.isSensor = true;
 
-        void MK::createBoundary(float x, float y, float width, float height) {
-            bagel::Entity entity = bagel::Entity::create();
+        b2Polygon boxShape = b2MakeBox((CHARACTER_WIDTH / 2.0f) / WINDOW_SCALE,
+                                        (CHARACTER_HEIGHT / 2.0f) / WINDOW_SCALE);
 
-            entity.addAll(Position{x, y},
-                          Collider{});
-        }
+        b2BodyId body = b2CreateBody(boxWorld, &bodyDef);
+        b2ShapeId shape = b2CreatePolygonShape(body, &shapeDef, &boxShape);
 
-        void MK::createGameInfo(float initialTime) {
-            bagel::Entity entity = bagel::Entity::create();
+        // Add components to the entity
+        PlayerState playerState;
+        playerState.playerNumber = playerNumber;
+        playerState.direction = (playerNumber == 1) ? PlayerState::RIGHT : PlayerState::LEFT;
 
-            entity.addAll(Time{initialTime},
-                          Score{0, 0, 0},
-                          Position{0, 0},
-                          Texture{nullptr, SDL_FRect{0, 0, 100, 50}});
+        bagel::Entity entity = bagel::Entity::create();
+        entity.addAll(Position{x, y},
+                      Movement{0, 0},
+                      Collider{body, shape},
+                      Texture{texture},
+                      playerState,
+                      Inputs{},
+                      character,
+                      Health{100.0f, 100.0f});
 
-        }
+        b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
+
+        return entity.entity();
+    }
+
+    void MK::createAttack(float x, float y, State type, int playerNumber) {
+
+
+        b2BodyDef bodyDef = b2DefaultBodyDef();
+        bodyDef.type = b2_kinematicBody;
+        bodyDef.position = getPosition(x, y);
+
+        b2ShapeDef shapeDef = b2DefaultShapeDef();
+        shapeDef.enableSensorEvents = true;
+        shapeDef.isSensor = true;
+
+        b2Polygon boxShape = b2MakeBox((CHARACTER_WIDTH / 2.0f) / WINDOW_SCALE,
+                                       (CHARACTER_HEIGHT / 2.0f) / WINDOW_SCALE);
+
+        b2BodyId body = b2CreateBody(boxWorld, &bodyDef);
+        b2ShapeId shape = b2CreatePolygonShape(body, &shapeDef, &boxShape);
+
+        bagel::Entity entity = bagel::Entity::create();
+        entity.addAll(Position{x, y},
+                      Collider{body, shape},
+                      Attack{type, playerNumber},
+                      Time{});
+
+        b2Body_SetUserData(body, new bagel::ent_type{entity.entity()});
+    }
+
+    void MK::createSpecialAttack(float x, float y, SpecialAttackType type) {
+        bagel::Entity entity = bagel::Entity::create();
+
+        entity.addAll(Position{x, y},
+                      Collider{},
+                      SpecialAttack{type, 0.0f, 0.0f, 0, 0.0f, 0.0f});
+    }
+
+    void MK::createBoundary(float x, float y, float width, float height) {
+        bagel::Entity entity = bagel::Entity::create();
+
+        entity.addAll(Position{x, y},
+                      Collider{});
+    }
+
+    void MK::createGameInfo(float initialTime) {
+        bagel::Entity entity = bagel::Entity::create();
+
+        entity.addAll(Time{initialTime},
+                      Score{0, 0, 0},
+                      Position{0, 0},
+                      Texture{nullptr, SDL_FRect{0, 0, 100, 50}});
+
+    }
 
     void MK::createBackground(std::string backgroundPath) {
 
@@ -810,4 +865,52 @@ namespace mortal_kombat
             }
         );
     }
+
+    void MK::createBar(bagel::Entity player1, bagel::Entity player2) {
+        // Load bar texture
+        SDL_Surface* surface = IMG_Load("res/Game_info.png");
+        if (!surface) {
+            SDL_Log("Failed to load bar image: %s", SDL_GetError());
+            return;
+        }
+
+        SDL_Texture* barTexture = SDL_CreateTextureFromSurface(ren, surface);
+        SDL_DestroySurface(surface);
+        if (!barTexture) {
+            SDL_Log("Failed to create bar texture: %s", SDL_GetError());
+            return;
+        }
+
+        // Dimensions of the green health bar in the texture
+        const SDL_FRect GREEN_SRC = { 45, 6, 112, 9 }; // Adjust based on your new uploaded image
+        const float BAR_WIDTH = 250.0f;
+        const float BAR_HEIGHT = 18.0f;
+        const float OFFSET_Y = 10.0f;
+        const float MARGIN = 50.0f;
+
+        // Player 1 (Left side)
+        {
+            bagel::Entity bar1 = bagel::Entity::create();
+            bar1.addAll(
+                Position{ MARGIN, OFFSET_Y },
+                Texture{ barTexture, GREEN_SRC, { MARGIN, OFFSET_Y, BAR_WIDTH, BAR_HEIGHT } },
+                DamageVisual{ player1.get<Health>().health },
+                HealthBarReference{ player1.entity() }
+            );
+        }
+
+        // Player 2 (Right side)
+        {
+            float xRight = WINDOW_WIDTH - BAR_WIDTH - MARGIN;
+            bagel::Entity bar2 = bagel::Entity::create();
+            bar2.addAll(
+                Position{ xRight, OFFSET_Y },
+                Texture{ barTexture, GREEN_SRC, { xRight, OFFSET_Y, BAR_WIDTH, BAR_HEIGHT } },
+                DamageVisual{ player2.get<Health>().health },
+                HealthBarReference{ player2.entity() }
+            );
+        }
+    }
+
+
 }
